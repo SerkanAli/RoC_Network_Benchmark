@@ -10,7 +10,7 @@ import java.security.AccessControlException;
 public class Main {
 
     private static boolean m_bUseClient = false; //true: this jar is client side/ false: this jar is Server side
-    private static short m_nProtocol = 0; // 0 = TCP / 1 = UDP ...
+    private static short m_nProtocol = 2; // 0 = TCP / 1 = UDP ...
 
 
     public static void main(String[] args) {

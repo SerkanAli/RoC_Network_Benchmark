@@ -5,22 +5,29 @@ import org.eclipse.paho.client.mqttv3.*;
 import java.io.IOException;
 
 public class MQTTServer implements BaseServer, MqttCallback {
+
+
+    MqttClient m_oClient;
+    int m_nPort;
     @Override
     public void SetPort(int nPort) {
-
+        m_nPort = nPort;
     }
 
     @Override
     public void ListentoPort() throws IOException {
 
         try {
-            //We're using eclipse paho library  so we've to go with MqttCallback
-            MqttClient client = new MqttClient("tcp://localhost:1883","clientid");
-            client.setCallback(this);
-            MqttConnectOptions mqOptions=new MqttConnectOptions();
-            mqOptions.setCleanSession(true);
-            client.connect(mqOptions);      //connecting to broker
-            client.subscribe("test/topic"); //subscribing to the topic name  test/topic
+           m_oClient = new MqttClient("tcp://localhost:1883", "Sending");
+           m_oClient.connect();
+           m_oClient.setCallback(this);
+           m_oClient.subscribe("test/topic");
+
+           MqttMessage message = new MqttMessage();
+           message.setPayload("A single message from my computer".getBytes());
+           m_oClient.publish("test/topic", message);
+
+            System.out.println("Listening to Port ...");
         } catch (MqttException e) {
             e.printStackTrace();
         }
