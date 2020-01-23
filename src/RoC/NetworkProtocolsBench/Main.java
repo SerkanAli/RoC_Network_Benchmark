@@ -37,6 +37,10 @@ public class Main {
         {
             oClient = new UDPClient();
         }
+        else if(m_nProtocol == 2)
+        {
+            oClient = new MQTTClient();
+        }
         else
             oClient = new UDPClient();
 
@@ -97,9 +101,13 @@ public class Main {
             oServer = new TCPServer();
 
         }
-        else
+        else if(m_nProtocol == 1)
         {
             oServer = new UDPServer();
+        }
+        else
+        {
+            oServer = new MQTTServer();
         }
 
 
