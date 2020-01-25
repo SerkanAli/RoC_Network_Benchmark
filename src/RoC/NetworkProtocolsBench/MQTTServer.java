@@ -9,6 +9,7 @@ public class MQTTServer implements BaseServer, MqttCallback {
 
     MqttClient m_oClient;
     int m_nPort;
+    String m_sTopic = "test/topic";
     @Override
     public void SetPort(int nPort) {
         m_nPort = nPort;
@@ -18,16 +19,14 @@ public class MQTTServer implements BaseServer, MqttCallback {
     public void ListentoPort() throws IOException {
 
         try {
-           m_oClient = new MqttClient("tcp://localhost:1883", "Sending");
-           m_oClient.connect();
-           m_oClient.setCallback(this);
-           m_oClient.subscribe("test/topic");
-
-           MqttMessage message = new MqttMessage();
-           message.setPayload("A single message from my computer".getBytes());
-           m_oClient.publish("test/topic", message);
+           m_oClient = new MqttClient("tcp://192.168.178.60:1883", "Sending");
+            m_oClient.connect();
+            m_oClient.setCallback(this);
+            m_oClient.subscribe(m_sTopic);
 
             System.out.println("Listening to Port ...");
+
+
         } catch (MqttException e) {
             e.printStackTrace();
         }

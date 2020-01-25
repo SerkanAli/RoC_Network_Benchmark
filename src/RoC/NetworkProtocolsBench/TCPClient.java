@@ -51,6 +51,7 @@ public class TCPClient implements BaseClient {
             return null;
 
         m_oOutToServer.writeBytes(sData + '\n');
+
         return "";
     }
 

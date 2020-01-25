@@ -9,7 +9,7 @@ import java.security.AccessControlException;
 
 public class Main {
 
-    private static boolean m_bUseClient = false; //true: this jar is client side/ false: this jar is Server side
+    private static boolean m_bUseClient = true; //true: this jar is client side/ false: this jar is Server side
     private static short m_nProtocol = 2; // 0 = TCP / 1 = UDP ...
 
 
@@ -45,8 +45,8 @@ public class Main {
             oClient = new UDPClient();
 
         oClient.SetPort(6300);
-        oClient.SetIPAdress("169.254.41.185"); //eth
-        //oClient.SetIPAdress("192.168.178.60"); //wlan
+        //oClient.SetIPAdress("169.254.41.185"); //eth
+        oClient.SetIPAdress("192.168.178.62"); //wlan
         OperatingSystemMXBean operatingSystemMXBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
         ThreadMXBean newBean = ManagementFactory.getThreadMXBean();
         try
@@ -68,10 +68,12 @@ public class Main {
             long lastThreadTime = newBean.getCurrentThreadCpuTime();
 
             float smoothLoad = 0;
+            oClient.CreateConnection();
             for(int i = 0; i< 10000; i++){
                 //System.out.println(operatingSystemMXBean.getSystemCpuLoad());
                 //avg =(operatingSystemMXBean.getProcessCpuLoad()+ i * avg )/(i+1);
-                oClient.SendStringCreateNewConnection("hallo pi");
+               // oClient.SendStringCreateNewConnection("hallo pi " + String.valueOf(i));
+                oClient.SendStringOverConnection("hallo pi " + String.valueOf(i));
                 // Calculate coarse CPU usage:
                 long time = System.nanoTime();
                 long threadTime = newBean.getCurrentThreadCpuTime();

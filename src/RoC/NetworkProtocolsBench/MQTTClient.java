@@ -1,59 +1,88 @@
 package RoC.NetworkProtocolsBench;
 
-import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.eclipse.paho.client.mqttv3.MqttException;
-import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.*;
 
 import java.io.IOException;
 
 public class MQTTClient implements BaseClient{
+    String m_sBroker = "tcp://localhost:1883";
+    int m_nPort = 0;
+    MqttClient m_oMqttClient;
+    boolean m_bIsConnected = false;
+    String m_sTopicName = "test/topic";
+
     @Override
     public void SetPort(int nPort) {
-
+        m_nPort = nPort;
     }
 
     @Override
     public void SetIPAdress(String sIP) {
-
+        m_sBroker = "tcp://" + sIP + ":1883";
     }
 
     @Override
     public String SendStringCreateNewConnection(String sData) throws IOException {
-        String broker = "tcp://localhost:1883";
-        String topicName = "test/topic";
+
         int qos = 1;
 
         try {
-            MqttClient mqttClient = new MqttClient(broker,String.valueOf(System.nanoTime()));
+            MqttClient mqttClient = new MqttClient(m_sBroker,String.valueOf(System.nanoTime()));
+
+            MqttConnectOptions connOpts = new MqttConnectOptions();
+            connOpts.setCleanSession(true); //no persistent session
+
+            mqttClient.connect(connOpts);
+
+            MqttMessage message = new MqttMessage(sData.getBytes());
+            mqttClient.publish(m_sTopicName,message);
+
+            mqttClient.close(true);
+            
         } catch (MqttException e) {
             e.printStackTrace();
         }
-//Mqtt ConnectOptions is used to set the additional features to mqtt message
-
-        MqttConnectOptions connOpts = new MqttConnectOptions();
-
-        connOpts.setCleanSession(true); //no persistent session
-        connOpts.setKeepAliveInterval(1000);
-
-
-        MqttMessage message = new MqttMessage("Ed Sheeran".getBytes());
-
         return null;
     }
 
     @Override
     public void CreateConnection() {
+        try {
+            m_oMqttClient = new MqttClient(m_sBroker,String.valueOf(System.nanoTime()));
 
+            MqttConnectOptions connOpts = new MqttConnectOptions();
+            connOpts.setCleanSession(true); //no persistent session
+            m_oMqttClient.connect(connOpts);
+            m_bIsConnected = true;
+
+        } catch (MqttException e) {
+            e.printStackTrace();
+            m_bIsConnected = false;
+        }
     }
 
     @Override
     public String SendStringOverConnection(String sData) throws IOException {
-        return null;
+        if(!m_bIsConnected)
+            return null;
+        MqttMessage message = new MqttMessage(sData.getBytes());
+        try {
+            m_oMqttClient.publish(m_sTopicName,message);
+        } catch (MqttException e) {
+            e.printStackTrace();
+        }
+
+        return "";
     }
 
     @Override
     public void CloseConnection() {
-
+        try {
+            m_oMqttClient.close(true);
+            m_bIsConnected = false;
+        } catch (MqttException e) {
+            e.printStackTrace();
+            m_bIsConnected = true;
+        }
     }
 }
