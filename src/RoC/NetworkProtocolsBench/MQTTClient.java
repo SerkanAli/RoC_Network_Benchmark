@@ -85,4 +85,9 @@ public class MQTTClient implements BaseClient{
             m_bIsConnected = true;
         }
     }
+
+    @Override
+    public long GetServerBeginTime() {
+        return 0;
+    }
 }

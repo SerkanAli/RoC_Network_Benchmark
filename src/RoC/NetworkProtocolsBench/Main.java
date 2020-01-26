@@ -9,8 +9,8 @@ import java.security.AccessControlException;
 
 public class Main {
 
-    private static boolean m_bUseClient = true; //true: this jar is client side/ false: this jar is Server side
-    private static short m_nProtocol = 2; // 0 = TCP / 1 = UDP ...
+    private static boolean m_bUseClient = false; //true: this jar is client side/ false: this jar is Server side
+    private static short m_nProtocol = 1; // 0 = TCP / 1 = UDP ...
 
 
     public static void main(String[] args) {
@@ -47,49 +47,10 @@ public class Main {
         oClient.SetPort(6300);
         //oClient.SetIPAdress("169.254.41.185"); //eth
         oClient.SetIPAdress("192.168.178.62"); //wlan
-        OperatingSystemMXBean operatingSystemMXBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
-        ThreadMXBean newBean = ManagementFactory.getThreadMXBean();
-        try
-        {
-            if (newBean.isThreadCpuTimeSupported())
-                newBean.setThreadCpuTimeEnabled(true);
-            else
-                throw new AccessControlException("");
-        }
-        catch (AccessControlException e)
-        {
-            System.out.println("CPU Usage monitoring is not available!");
-            System.exit(0);
-        }
+
+        BenchNetwork oBench = new BenchNetwork();
         try {
-            final long starttime = System.nanoTime();
-            double avg=0.0;
-            long lastTime = System.nanoTime();
-            long lastThreadTime = newBean.getCurrentThreadCpuTime();
-
-            float smoothLoad = 0;
-            oClient.CreateConnection();
-            for(int i = 0; i< 10000; i++){
-                //System.out.println(operatingSystemMXBean.getSystemCpuLoad());
-                //avg =(operatingSystemMXBean.getProcessCpuLoad()+ i * avg )/(i+1);
-               // oClient.SendStringCreateNewConnection("hallo pi " + String.valueOf(i));
-                oClient.SendStringOverConnection("hallo pi " + String.valueOf(i));
-                // Calculate coarse CPU usage:
-                long time = System.nanoTime();
-                long threadTime = newBean.getCurrentThreadCpuTime();
-                double load = (threadTime - lastThreadTime) / (double)(time - lastTime);
-                // Smooth it.
-                smoothLoad += (load - smoothLoad) * 0.1; // damping factor, lower means less responsive, 1 means no smoothing.
-
-                // For next iteration.
-                lastTime = time;
-                lastThreadTime = threadTime;
-            }
-            final long endtime = System.nanoTime();
-            System.out.println("Whole time is:");
-            System.out.println(endtime-starttime);
-            System.out.println("Avarage process load:");
-            System.out.println(smoothLoad);
+            oBench.BeginBenchmark(oClient);
         } catch (IOException e) {
             e.printStackTrace();
         }

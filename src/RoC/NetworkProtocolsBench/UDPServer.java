@@ -7,6 +7,8 @@ import java.net.DatagramSocket;
 public class UDPServer implements BaseServer
 {
     private int m_nPort;
+    private long m_nBeginTime = 0;
+    private boolean m_bBeginIsSet = false;
     @Override
     public void SetPort(int nPort) {m_nPort = nPort;}
 
@@ -17,23 +19,28 @@ public class UDPServer implements BaseServer
         byte[] receive = new byte[65535];
 
         DatagramPacket DpReceive = null;
+        DpReceive = new DatagramPacket(receive, receive.length);
+
         while (true)
         {
             System.out.println("Listen to port...");
-            // Step 2 : create a DatgramPacket to receive the data.
-            DpReceive = new DatagramPacket(receive, receive.length);
 
-            // Step 3 : revieve the data in byte buffer.
+
             ds.receive(DpReceive);
+            if(!m_bBeginIsSet)
+            {
+                m_nBeginTime = BenchNetworkTime.GetCurrentTime();
+                m_bBeginIsSet = true;
+            }
 
             System.out.println("Client:-" + data(receive));
 
             // Exit the server if the client sends "bye"
-            if (data(receive).toString().equals("bye"))
+          /*  if (data(receive).toString().equals("bye"))
             {
                 System.out.println("Client sent bye.....EXITING");
                 break;
-            }
+            }*/
 
             // Clear the buffer after every message.
             receive = new byte[65535];
@@ -42,6 +49,12 @@ public class UDPServer implements BaseServer
 
     @Override
     public void ShutDownServer(){}
+
+    @Override
+    public long GetBeginTime() {
+        m_bBeginIsSet = false;
+        return m_nBeginTime;
+    }
 
 
     // A utility method to convert the byte array

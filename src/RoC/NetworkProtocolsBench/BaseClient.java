@@ -15,5 +15,5 @@ public interface BaseClient {
      String SendStringOverConnection(String sData) throws IOException;
      void CloseConnection();
 
-
+     long GetServerBeginTime();
 }

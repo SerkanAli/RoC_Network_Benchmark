@@ -8,4 +8,7 @@ public interface BaseServer {
 
     void ListentoPort() throws IOException;
     void ShutDownServer();
+
+    long GetBeginTime();
+
 }

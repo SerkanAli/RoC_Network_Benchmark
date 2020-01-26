@@ -1,7 +1,10 @@
 package RoC.NetworkProtocolsBench;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.net.*;
+import java.util.Arrays;
+import java.util.List;
 
 public class UDPClient implements BaseClient
 {
@@ -60,12 +63,17 @@ public class UDPClient implements BaseClient
     public String SendStringOverConnection(String sData) throws IOException {
         if(!m_bIsConnected)
             return null;
-        byte buf[] = null;
+        byte aData[] = null;
         String inp = sData;
-        buf = inp.getBytes();
-        DatagramPacket DpSend = new DatagramPacket(buf, buf.length, m_oIP, m_nPort);
-        m_odataSocket.send(DpSend);
-
+        aData = inp.getBytes();
+        int nCount = (aData.length / 65535) +1;
+        for(int nIndex = 0; nIndex < nCount; nIndex++)
+        {
+            int nBegin = nIndex * 65535;
+            byte buf[] = Arrays.copyOfRange(aData, nBegin, nBegin + 65535);
+            DatagramPacket DpSend = new DatagramPacket(buf, buf.length, m_oIP, m_nPort);
+            m_odataSocket.send(DpSend);
+        }
         return "";
     }
 
@@ -73,5 +81,10 @@ public class UDPClient implements BaseClient
     public void CloseConnection() {
         m_odataSocket.disconnect();
         m_bIsConnected = false;
+    }
+
+    @Override
+    public long GetServerBeginTime() {
+        return 0;
     }
 }

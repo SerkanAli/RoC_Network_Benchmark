@@ -64,4 +64,9 @@ public class TCPClient implements BaseClient {
         }
         m_bIsConnected = false;
     }
+
+    @Override
+    public long GetServerBeginTime() {
+        return 0;
+    }
 }

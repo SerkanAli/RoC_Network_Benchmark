@@ -10,6 +10,9 @@ public class MQTTServer implements BaseServer, MqttCallback {
     MqttClient m_oClient;
     int m_nPort;
     String m_sTopic = "test/topic";
+    private long m_nBeginTime = 0;
+    private boolean m_bBeginIsSet = false;
+
     @Override
     public void SetPort(int nPort) {
         m_nPort = nPort;
@@ -39,12 +42,23 @@ public class MQTTServer implements BaseServer, MqttCallback {
     }
 
     @Override
+    public long GetBeginTime() {
+        m_bBeginIsSet = false;
+        return m_nBeginTime;
+    }
+
+    @Override
     public void connectionLost(Throwable cause) {
 
     }
 
     @Override
     public void messageArrived(String topic, MqttMessage message) throws Exception {
+        if(!m_bBeginIsSet)
+        {
+            m_nBeginTime = BenchNetworkTime.GetCurrentTime();
+            m_bBeginIsSet = true;
+        }
         System.out.println("message is : "+message);
     }
 
