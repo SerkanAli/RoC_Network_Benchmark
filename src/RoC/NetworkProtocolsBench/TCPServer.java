@@ -30,20 +30,13 @@ public class TCPServer implements BaseServer {
         {
             System.out.println("Listen to port...");
             Socket connectionSocket = welcomeSocket.accept();
-            if(!m_bBeginIsSet)
+            /*if(!m_bBeginIsSet)
             {
                 m_nBeginTime = BenchNetworkTime.GetCurrentTime();
                 m_bBeginIsSet = true;
-            }
+            }*/
             BufferedReader inFromClient =new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
-
-            //DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
-            clientSentence = inFromClient.readLine();
-
-            //if(clientSentence == null)
-            //  continue;
-            //capitalizedSentence = clientSentence.toUpperCase() + '\n';
-            //outToClient.writeBytes(capitalizedSentence);
+            System.out.println(inFromClient.readLine());
         }
     }
 
