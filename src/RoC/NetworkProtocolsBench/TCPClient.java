@@ -1,6 +1,9 @@
 package RoC.NetworkProtocolsBench;
+import org.openjdk.jmh.annotations.Benchmark;
+
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.Socket;
 
 public class TCPClient implements BaseClient {
@@ -36,21 +39,31 @@ public class TCPClient implements BaseClient {
 
     @Override
     public void CreateConnection() {
-        try {
+       /* try {
             m_oSocket = new Socket(m_sIPadress, m_nPort);
             m_oOutToServer = new DataOutputStream(m_oSocket.getOutputStream());
             m_bIsConnected = true;
         } catch (IOException e) {
             m_bIsConnected = false;
-        }
+        }*/
     }
 
+    @Benchmark
     @Override
     public String SendStringOverConnection(String sData) throws IOException {
-        if(!m_bIsConnected)
-            return null;
+        Socket clientSocket = new Socket(m_sIPadress, m_nPort);
+        DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
 
+        outToServer.writeBytes(sData + '\n');
+
+        clientSocket.close();
+        /*if(!m_bIsConnected)
+            return null;
+        m_oOutToServer = new DataOutputStream(m_oSocket.getOutputStream());
         m_oOutToServer.writeBytes(sData + '\n');
+        */
+        //m_oOutToServer.writeBytes(sData + '\n' );
+        //m_oOutToServer.flush();
 
         return "";
     }

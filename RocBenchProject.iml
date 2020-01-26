@@ -9,5 +9,7 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.2" level="project" />
     <orderEntry type="library" name="commons-net:commons-net:3.6" level="project" />
+    <orderEntry type="library" name="org.openjdk.jmh:jmh-generator-annprocess:1.9.1" level="project" />
+    <orderEntry type="library" name="org.openjdk.jmh:jmh-core:1.19" level="project" />
   </component>
 </module>

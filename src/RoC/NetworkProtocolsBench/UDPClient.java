@@ -1,5 +1,7 @@
 package RoC.NetworkProtocolsBench;
 
+import org.openjdk.jmh.annotations.Benchmark;
+
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.net.*;
@@ -59,6 +61,8 @@ public class UDPClient implements BaseClient
         }
     }
 
+    final int nChunkSize = 65500;
+    @Benchmark
     @Override
     public String SendStringOverConnection(String sData) throws IOException {
         if(!m_bIsConnected)
@@ -66,11 +70,11 @@ public class UDPClient implements BaseClient
         byte aData[] = null;
         String inp = sData;
         aData = inp.getBytes();
-        int nCount = (aData.length / 65535) +1;
+        int nCount = (aData.length / nChunkSize) +1;
         for(int nIndex = 0; nIndex < nCount; nIndex++)
         {
-            int nBegin = nIndex * 65535;
-            byte buf[] = Arrays.copyOfRange(aData, nBegin, nBegin + 65535);
+            int nBegin = nIndex * nChunkSize;
+            byte buf[] = Arrays.copyOfRange(aData, nBegin, nBegin+nChunkSize);
             DatagramPacket DpSend = new DatagramPacket(buf, buf.length, m_oIP, m_nPort);
             m_odataSocket.send(DpSend);
         }

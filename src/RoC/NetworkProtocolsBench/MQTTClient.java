@@ -1,6 +1,7 @@
 package RoC.NetworkProtocolsBench;
 
 import org.eclipse.paho.client.mqttv3.*;
+import org.openjdk.jmh.annotations.Benchmark;
 
 import java.io.IOException;
 
@@ -61,6 +62,7 @@ public class MQTTClient implements BaseClient{
         }
     }
 
+    @Benchmark
     @Override
     public String SendStringOverConnection(String sData) throws IOException {
         if(!m_bIsConnected)

@@ -4,13 +4,15 @@ package RoC.NetworkProtocolsBench;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import com.sun.management.OperatingSystemMXBean;
+import org.openjdk.jmh.runner.RunnerException;
+
 import java.lang.management.ThreadMXBean;
 import java.security.AccessControlException;
 
 public class Main {
 
-    private static boolean m_bUseClient = false; //true: this jar is client side/ false: this jar is Server side
-    private static short m_nProtocol = 1; // 0 = TCP / 1 = UDP ...
+    private static boolean m_bUseClient = true; //true: this jar is client side/ false: this jar is Server side
+    private static short m_nProtocol = 0; // 0 = TCP / 1 = UDP ...
 
 
     public static void main(String[] args) {
@@ -46,7 +48,7 @@ public class Main {
 
         oClient.SetPort(6300);
         //oClient.SetIPAdress("169.254.41.185"); //eth
-        oClient.SetIPAdress("192.168.178.62"); //wlan
+        oClient.SetIPAdress("192.168.178.58"); //wlan
 
         BenchNetwork oBench = new BenchNetwork();
         try {

@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.security.AccessControlException;
+import java.text.DecimalFormat;
 import java.util.Random;
 
 public class BenchNetworkTime {
@@ -63,18 +64,11 @@ public class BenchNetworkTime {
         m_nSmoothLoad = 0;
     }
 
-    private long m_nThroughput;
+    private double m_nThroughput;
     private long m_nLatency;
 
-    public void End(long nFileSize)
+    public void Next()
     {
-        long nEndTime = GetCurrentTime();
-        long nServerBeginTime = m_oClient.GetServerBeginTime();
-        m_nLatency = nServerBeginTime - m_nBeginTime;
-        if(m_nLatency < 0)
-            m_nLatency = 0;
-        m_nThroughput = (nEndTime - m_nBeginTime + m_nLatency) / nFileSize;
-
         // Calculate coarse CPU usage:
         long time = System.nanoTime();
         long threadTime = m_oNewBean.getCurrentThreadCpuTime();
@@ -85,14 +79,26 @@ public class BenchNetworkTime {
         // For next iteration.
         m_nLastTime = time;
         m__nLastThreadTime = threadTime;
+    }
+
+    public void End(long nFileSize)
+    {
+        long nEndTime = GetCurrentTime();
+        long nServerBeginTime = m_oClient.GetServerBeginTime();
+        m_nLatency = nServerBeginTime - m_nBeginTime;
+        if(m_nLatency < 0)
+            m_nLatency = 0;
 
 
         m_nTotalTime = System.nanoTime() - m_nStartTime;
+
+        //m_nThroughput = (double)nFileSize / (double)(nEndTime - m_nBeginTime + m_nLatency)  ;
+        m_nThroughput = (double)nFileSize / (double)(m_nTotalTime)  ;
     }
 
-    public long GetTroughput()
+    public double GetTroughput()
     {
-        return m_nThroughput;
+        return m_nThroughput *1000;
     }
 
 
@@ -101,14 +107,14 @@ public class BenchNetworkTime {
         return m_nLatency;
     }
 
-    public long GetTotalTime()
+    public float GetTotalTime()
     {
-        return m_nTotalTime;
+        return (float)m_nTotalTime / 1000000000;
     }
 
     public float GetCPULoad()
     {
-        return m_nSmoothLoad;
+        return m_nSmoothLoad * 100;
     }
 }
 
@@ -117,37 +123,37 @@ class BenchNetwork
 {
 
     public void BeginBenchmark(BaseClient oCLient) throws IOException {
-        String s5Mbyte = createDataSize(5);
-        String s100Mybte = createDataSize(100);
         oCLient.CreateConnection();
+        //Warm up
+        for(int nCount = 0; nCount < 10; nCount++)
+            oCLient.SendStringOverConnection("Warm Up");
 
-        BenchNetworkTime oTime = new BenchNetworkTime(oCLient);
-
-
-
-        /*
-        *    Transfer 5 MB
-        * */
-        oTime.Begin();
-        oCLient.SendStringOverConnection(s5Mbyte);
-        oTime.End(5 * 1048576);
-
-        System.out.println("Result of 5 Mybte transfer is:");
-        System.out.println("Total time: " + oTime.GetTotalTime());
-        System.out.println("Throughput: " + oTime.GetTroughput());
-        System.out.println("CPU Load: " + oTime.GetCPULoad());
-        System.out.println("");
-
-        oTime.Begin();
-        oCLient.SendStringOverConnection(s100Mybte);
-        oTime.End(100 * 1048576);
-        System.out.println("Result of 5 Mybte transfer is:");
-        System.out.println("Total time: " + oTime.GetTotalTime());
-        System.out.println("Throughput: " + oTime.GetTroughput());
-        System.out.println("CPU Load: " + oTime.GetCPULoad());
-        System.out.println("");
+        //Actual Benchmark with different Mbyte sizes
+        OneBench(1, oCLient);
+        OneBench(2, oCLient);
+        OneBench(5, oCLient);
+        OneBench(10, oCLient);
+        OneBench(25, oCLient);
+        OneBench(50, oCLient);
     }
 
+    void OneBench(int size, BaseClient oCLient) throws IOException {
+        BenchNetworkTime oTime = new BenchNetworkTime(oCLient);
+        String sData = createDataSize(size);
+
+        oTime.Begin();
+        for(int nCount = 0; nCount < 10; nCount++) {
+            oCLient.SendStringOverConnection(sData);
+            oTime.Next();
+        }
+        oTime.End(size * 10 * 1048576);
+
+        System.out.println("Result of "+ size +" Mybte transfer is:");
+        System.out.println("Total time: " + new DecimalFormat("###.##").format( oTime.GetTotalTime()) + " sec");
+        System.out.println("Throughput: " +new DecimalFormat("###.##").format( oTime.GetTroughput()) + " Mbyte per Sec");
+        System.out.println("CPU Load: " + new DecimalFormat("##.##").format(oTime.GetCPULoad()) + " %");
+        System.out.println("");
+    }
 
 
     private static String createDataSize(int nMegabyte) {
