@@ -33,7 +33,7 @@ public class UDPServer implements BaseServer
                 m_bBeginIsSet = true;
             }
 
-            System.out.println("Client:-" + data(receive));
+            System.out.println("Client:-" + receive.toString().substring(0,2));
 
             // Exit the server if the client sends "bye"
           /*  if (data(receive).toString().equals("bye"))
@@ -50,11 +50,6 @@ public class UDPServer implements BaseServer
     @Override
     public void ShutDownServer(){}
 
-    @Override
-    public long GetBeginTime() {
-        m_bBeginIsSet = false;
-        return m_nBeginTime;
-    }
 
 
     // A utility method to convert the byte array

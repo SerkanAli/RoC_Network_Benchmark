@@ -41,11 +41,7 @@ public class MQTTServer implements BaseServer, MqttCallback {
 
     }
 
-    @Override
-    public long GetBeginTime() {
-        m_bBeginIsSet = false;
-        return m_nBeginTime;
-    }
+
 
     @Override
     public void connectionLost(Throwable cause) {
@@ -59,7 +55,7 @@ public class MQTTServer implements BaseServer, MqttCallback {
             m_nBeginTime = BenchNetworkTime.GetCurrentTime();
             m_bBeginIsSet = true;
         }
-        System.out.println("message is : "+message);
+        System.out.println("message is : "+message.toString().substring(0,2));
     }
 
     @Override

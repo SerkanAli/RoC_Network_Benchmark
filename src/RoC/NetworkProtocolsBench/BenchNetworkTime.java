@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.security.AccessControlException;
+import java.sql.Time;
 import java.text.DecimalFormat;
 import java.util.Random;
 
@@ -30,7 +31,7 @@ public class BenchNetworkTime {
 
     public static long GetCurrentTime()
     {
-        return TimeStamp.getCurrentTime().ntpValue();
+        return TimeStamp.getCurrentTime().getTime();
     }
 
     public void Begin()
@@ -92,13 +93,13 @@ public class BenchNetworkTime {
 
         m_nTotalTime = System.nanoTime() - m_nStartTime;
 
-        //m_nThroughput = (double)nFileSize / (double)(nEndTime - m_nBeginTime + m_nLatency)  ;
-        m_nThroughput = (double)nFileSize / (double)(m_nTotalTime)  ;
+        m_nThroughput = (double)nFileSize / (double)(nEndTime - m_nBeginTime)  ;
+        //m_nThroughput = (double)nFileSize / (double)(m_nTotalTime)  ;
     }
 
     public double GetTroughput()
     {
-        return m_nThroughput *1000;
+        return m_nThroughput /1000;
     }
 
 
@@ -140,15 +141,15 @@ class BenchNetwork
     void OneBench(int size, BaseClient oCLient) throws IOException {
         BenchNetworkTime oTime = new BenchNetworkTime(oCLient);
         String sData = createDataSize(size);
-
+        final short nIterationCount = 10;
         oTime.Begin();
-        for(int nCount = 0; nCount < 10; nCount++) {
+        for(int nCount = 0; nCount < nIterationCount; nCount++) {
             oCLient.SendStringOverConnection(sData);
             oTime.Next();
         }
-        oTime.End(size * 10 * 1048576);
+        oTime.End(size * nIterationCount * 1048576);
 
-        System.out.println("Result of "+ size +" Mybte transfer is:");
+        System.out.println("Result of "+ size +" Mybte transfer at "+ nIterationCount+" itarations is:");
         System.out.println("Total time: " + new DecimalFormat("###.##").format( oTime.GetTotalTime()) + " sec");
         System.out.println("Throughput: " +new DecimalFormat("###.##").format( oTime.GetTroughput()) + " Mbyte per Sec");
         System.out.println("CPU Load: " + new DecimalFormat("##.##").format(oTime.GetCPULoad()) + " %");

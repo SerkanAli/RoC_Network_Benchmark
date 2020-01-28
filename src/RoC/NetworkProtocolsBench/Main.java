@@ -16,7 +16,7 @@ public class Main {
 
 
     public static void main(String[] args) {
-
+        BenchNetworkTime.GetCurrentTime();
         if(m_bUseClient)
         {
             UseClient();
@@ -48,7 +48,7 @@ public class Main {
 
         oClient.SetPort(6300);
         //oClient.SetIPAdress("169.254.41.185"); //eth
-        oClient.SetIPAdress("192.168.178.58"); //wlan
+        oClient.SetIPAdress("192.168.178.45"); //wlan
 
         BenchNetwork oBench = new BenchNetwork();
         try {

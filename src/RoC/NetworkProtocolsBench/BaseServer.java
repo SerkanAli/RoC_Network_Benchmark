@@ -2,6 +2,7 @@ package RoC.NetworkProtocolsBench;
 
 import java.io.IOException;
 
+
 public interface BaseServer {
 
     void SetPort(int nPort);
@@ -9,6 +10,5 @@ public interface BaseServer {
     void ListentoPort() throws IOException;
     void ShutDownServer();
 
-    long GetBeginTime();
 
 }
