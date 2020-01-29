@@ -14,8 +14,9 @@ public class UDPServer implements BaseServer
 
     @Override
     public void ListentoPort() throws IOException{
-        // Step 1 : Create a socket to listen at port 1234
-        DatagramSocket ds = new DatagramSocket(m_nPort);
+
+        System.out.println("Listen to port UDP...");
+        DatagramSocket oDataSocket = new DatagramSocket(m_nPort);
         byte[] receive = new byte[65535];
 
         DatagramPacket DpReceive = null;
@@ -23,28 +24,25 @@ public class UDPServer implements BaseServer
 
         while (true)
         {
-            System.out.println("Listen to port...");
 
 
-            ds.receive(DpReceive);
-            if(!m_bBeginIsSet)
+            System.out.println("Waiting...");
+            oDataSocket.receive(DpReceive);
+           /* if(!m_bBeginIsSet)
             {
                 m_nBeginTime = BenchNetworkTime.GetCurrentTime();
                 m_bBeginIsSet = true;
-            }
-
-            System.out.println("Client:-" + receive.toString().substring(0,2));
-
-            // Exit the server if the client sends "bye"
-          /*  if (data(receive).toString().equals("bye"))
-            {
-                System.out.println("Client sent bye.....EXITING");
-                break;
             }*/
 
-            // Clear the buffer after every message.
+            System.out.println("Client:-" + data(receive));
             receive = new byte[65535];
+
+            if(!oDataSocket.isClosed())
+                break;
         }
+        oDataSocket.disconnect();
+        oDataSocket.close();
+        System.out.println("Closing");
     }
 
     @Override
@@ -60,7 +58,7 @@ public class UDPServer implements BaseServer
             return null;
         StringBuilder ret = new StringBuilder();
         int i = 0;
-        while (a[i] != 0)
+        while (i < 4)
         {
             ret.append((char) a[i]);
             i++;

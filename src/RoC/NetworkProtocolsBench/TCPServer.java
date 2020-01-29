@@ -25,22 +25,30 @@ public class TCPServer implements BaseServer {
     @Override
     public void ListentoPort() throws IOException
     {
+        int nI = 0;
+
         System.out.println("Listen to port TCP...");
-        ServerSocket oServerSocket = new ServerSocket(m_nPort);
+        ServerSocket oServerSocket = new ServerSocket(m_nPort + nI);
+        nI++;
+        System.out.println("is TCP closed? :" + oServerSocket.isClosed());
         Socket oConnectedSocket = oServerSocket.accept();
-        InetAddress oAdr = oConnectedSocket.getInetAddress();
-        while (!m_bShutdown)
-        {
-            /*if(!m_bBeginIsSet)
-            {
-                m_nBeginTime = BenchNetworkTime.GetCurrentTime();
-                m_bBeginIsSet = true;
-            }*/
-            BufferedReader oMsgClient =new BufferedReader(new InputStreamReader(oConnectedSocket.getInputStream()));
-            m_aTimes.add(BenchNetworkTime.GetCurrentTime());
+        System.out.println("Conected");
+        while (!m_bShutdown) {
+    /*if(!m_bBeginIsSet)
+    {
+        m_nBeginTime = BenchNetworkTime.GetCurrentTime();
+        m_bBeginIsSet = true;
+    }*/
+            System.out.println("Revie data");
+            BufferedReader oMsgClient = new BufferedReader(new InputStreamReader(oConnectedSocket.getInputStream()));
+            //  m_aTimes.add(BenchNetworkTime.GetCurrentTime());
             String sBuf = oMsgClient.readLine();
-            System.out.println(sBuf.substring(0,2));
+            if (sBuf == null)
+                break;
+            System.out.println(sBuf.substring(0, 4));
         }
+        oServerSocket.close();
+        System.out.println("Closing");
     }
 
     @Override

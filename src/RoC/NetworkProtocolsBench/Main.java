@@ -12,7 +12,7 @@ import java.security.AccessControlException;
 public class Main {
 
     private static boolean m_bUseClient = false; //true: this jar is client side/ false: this jar is Server side
-    private static short m_nProtocol = 0; // 0 = TCP / 1 = UDP / 2 = MQTT / 3 = Zigbee ...
+    private static short m_nProtocol = 2; // 0 = TCP / 1 = UDP / 2 = MQTT / 3 = Zigbee ...
 
 
     public static void main(String[] args) {
@@ -60,32 +60,37 @@ public class Main {
 
     private static void UseServer()
     {
-        BaseServer oServer;
-        if(m_nProtocol == 0)
-        {
-            oServer = new TCPServer();
+        //while (true) {
+            BaseServer oServer;
+            if(m_nProtocol == 0)
+            {
+                oServer = new TCPServer();
 
-        }
-        else if(m_nProtocol == 1)
-        {
-            oServer = new UDPServer();
-        }
-        else if(m_nProtocol == 2)
-        {
-            oServer = new MQTTServer();
-        }
-        else
-        {
-            oServer = new ZigbeeServer();
-        }
+            }
+            else if(m_nProtocol == 1)
+            {
+                oServer = new UDPServer();
+            }
+            else if(m_nProtocol == 2)
+            {
+                oServer = new MQTTServer();
+            }
+            else
+            {
+                oServer = new ZigbeeServer();
+            }
 
 
-        oServer.SetPort(6300);
-        try {
-            oServer.ListentoPort();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+
+            oServer.SetPort(6300);
+            try {
+                oServer.ListentoPort();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            System.out.println("Peace and out");
+          //  oServer = null;
+       // }
     }
 
 
