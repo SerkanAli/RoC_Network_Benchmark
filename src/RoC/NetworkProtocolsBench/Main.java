@@ -11,8 +11,8 @@ import java.security.AccessControlException;
 
 public class Main {
 
-    private static boolean m_bUseClient = true; //true: this jar is client side/ false: this jar is Server side
-    private static short m_nProtocol = 0; // 0 = TCP / 1 = UDP ...
+    private static boolean m_bUseClient = false; //true: this jar is client side/ false: this jar is Server side
+    private static short m_nProtocol = 0; // 0 = TCP / 1 = UDP / 2 = MQTT / 3 = Zigbee ...
 
 
     public static void main(String[] args) {
@@ -70,9 +70,13 @@ public class Main {
         {
             oServer = new UDPServer();
         }
-        else
+        else if(m_nProtocol == 2)
         {
             oServer = new MQTTServer();
+        }
+        else
+        {
+            oServer = new ZigbeeServer();
         }
 
 

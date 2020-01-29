@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.security.AccessControlException;
-import java.sql.Time;
 import java.text.DecimalFormat;
 import java.util.Random;
 
@@ -14,14 +13,17 @@ public class BenchNetworkTime {
 
     private BaseClient m_oClient;
 
-    private long m_nBeginTime;
+    private double m_nThroughput;
+    private long m_nLatency;
 
-    long m_nStartTime;
-    long m_nLastTime;
-    long m__nLastThreadTime;
+    private long m_nStartSendDataTime;
 
-    float m_nSmoothLoad = 0;
-    long m_nTotalTime;
+    private long m_nStartProcessTime;
+    private long m_nLastTime;
+    private long m__nLastThreadTime;
+
+    private float m_nSmoothLoad = 0;
+    private long m_nTotalTime;
     ThreadMXBean m_oNewBean;
 
     public BenchNetworkTime(BaseClient oClient)
@@ -36,9 +38,6 @@ public class BenchNetworkTime {
 
     public void Begin()
     {
-        m_nBeginTime = GetCurrentTime();
-
-
         /*
          *
          *   CPU usage
@@ -58,18 +57,23 @@ public class BenchNetworkTime {
             System.out.println("CPU Usage monitoring is not available!");
             System.exit(0);
         }
-        m_nStartTime = System.nanoTime();
+        m_nStartProcessTime = System.nanoTime();
         m_nLastTime = System.nanoTime();
         m__nLastThreadTime = m_oNewBean.getCurrentThreadCpuTime();
 
         m_nSmoothLoad = 0;
+
+        m_nThroughput = 0;
     }
 
-    private double m_nThroughput;
-    private long m_nLatency;
-
-    public void Next()
+    public void Next_BeforeSend()
     {
+        m_nStartSendDataTime = GetCurrentTime();
+    }
+
+    public void Next_AfterSend()
+    {
+        m_nThroughput = m_nThroughput + GetCurrentTime() - m_nStartSendDataTime;
         // Calculate coarse CPU usage:
         long time = System.nanoTime();
         long threadTime = m_oNewBean.getCurrentThreadCpuTime();
@@ -86,15 +90,12 @@ public class BenchNetworkTime {
     {
         long nEndTime = GetCurrentTime();
         long nServerBeginTime = m_oClient.GetServerBeginTime();
-        m_nLatency = nServerBeginTime - m_nBeginTime;
+        m_nLatency = nServerBeginTime - m_nStartSendDataTime;
         if(m_nLatency < 0)
             m_nLatency = 0;
 
 
-        m_nTotalTime = System.nanoTime() - m_nStartTime;
-
-        m_nThroughput = (double)nFileSize / (double)(nEndTime - m_nBeginTime)  ;
-        //m_nThroughput = (double)nFileSize / (double)(m_nTotalTime)  ;
+        m_nTotalTime = System.nanoTime() - m_nStartProcessTime;
     }
 
     public double GetTroughput()
@@ -124,10 +125,10 @@ class BenchNetwork
 {
 
     public void BeginBenchmark(BaseClient oCLient) throws IOException {
-        oCLient.CreateConnection();
+      //  oCLient.CreateConnection();
         //Warm up
-        for(int nCount = 0; nCount < 10; nCount++)
-            oCLient.SendStringOverConnection("Warm Up");
+      //  for(int nCount = 0; nCount < 10; nCount++)
+        //    oCLient.SendStringOverConnection("Warm Up");
 
         //Actual Benchmark with different Mbyte sizes
         OneBench(1, oCLient);
@@ -143,10 +144,13 @@ class BenchNetwork
         String sData = createDataSize(size);
         final short nIterationCount = 10;
         oTime.Begin();
+        oCLient.CreateConnection();
         for(int nCount = 0; nCount < nIterationCount; nCount++) {
+            oTime.Next_BeforeSend();
             oCLient.SendStringOverConnection(sData);
-            oTime.Next();
+            oTime.Next_AfterSend();
         }
+        oCLient.CloseConnection();
         oTime.End(size * nIterationCount * 1048576);
 
         System.out.println("Result of "+ size +" Mybte transfer at "+ nIterationCount+" itarations is:");
