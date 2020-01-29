@@ -83,6 +83,7 @@ public class UDPClient implements BaseClient
 
     @Override
     public void CloseConnection() {
+        m_odataSocket.close();
         m_odataSocket.disconnect();
         m_bIsConnected = false;
     }

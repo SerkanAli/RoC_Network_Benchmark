@@ -75,15 +75,20 @@ public class BenchNetworkTime {
     {
         m_nThroughput = m_nThroughput + GetCurrentTime() - m_nStartSendDataTime;
         // Calculate coarse CPU usage:
+
+      /*  long threadTime = m_oNewBean.getCurrentThreadCpuTime();
         long time = System.nanoTime();
-        long threadTime = m_oNewBean.getCurrentThreadCpuTime();
+
         double load = (threadTime - m__nLastThreadTime) / (double)(time - m_nLastTime);
+        System.out.println("Thread: " + (threadTime - m__nLastThreadTime));
+        System.out.println("Time:  " + (double)(time - m_nLastTime));
+        System.out.println("Load: " + load);
         // Smooth it.
-        m_nSmoothLoad += (load - m_nSmoothLoad) * 0.1; // damping factor, lower means less responsive, 1 means no smoothing.
+        m_nSmoothLoad += (load - m_nSmoothLoad) * 1; // damping factor, lower means less responsive, 1 means no smoothing.
 
         // For next iteration.
         m_nLastTime = time;
-        m__nLastThreadTime = threadTime;
+        m__nLastThreadTime = threadTime;*/
     }
 
     public void End(long nFileSize)
@@ -96,6 +101,8 @@ public class BenchNetworkTime {
 
 
         m_nTotalTime = System.nanoTime() - m_nStartProcessTime;
+        m_nSmoothLoad = (m_oNewBean.getCurrentThreadCpuTime() - m__nLastThreadTime) / (float)m_nTotalTime;
+        m_nThroughput = nFileSize / m_nThroughput;
     }
 
     public double GetTroughput()
@@ -132,11 +139,13 @@ class BenchNetwork
 
         //Actual Benchmark with different Mbyte sizes
         OneBench(1, oCLient);
+       // oCLient.SetPort(6301);
         OneBench(2, oCLient);
+        //oCLient.SetPort(6302);
         OneBench(5, oCLient);
-        OneBench(10, oCLient);
+       /* OneBench(10, oCLient);
         OneBench(25, oCLient);
-        OneBench(50, oCLient);
+        OneBench(50, oCLient);*/
     }
 
     void OneBench(int size, BaseClient oCLient) throws IOException {
@@ -165,8 +174,13 @@ class BenchNetwork
         int msgSize = nMegabyte * 524288;
         StringBuilder sb = new StringBuilder(msgSize);
         Random rnd = new Random();
-        for (int i=0; i<msgSize; i++) {
-            sb.append((char) (rnd.nextInt(26) + 'a'));
+
+        for (int i=0; i<msgSize; i = i + 4) {
+           // sb.append((char) (rnd.nextInt(26) + 'a'));
+            sb.append('H');
+            sb.append('e');
+            sb.append('y');
+            sb.append('x');
         }
         return sb.toString();
     }
