@@ -11,12 +11,13 @@ public interface BaseClient {
      void SetPort(int nPort);
      void SetIPAdress(String sIP);
 
-     String SendStringCreateNewConnection(String sData) throws IOException;
+     void SendStringCreateNewConnection(String sData) throws IOException;
 
      void CreateConnection();
-     @Benchmark
-     String SendStringOverConnection(String sData) throws IOException;
+     void SendStringOverConnection(String sData) throws IOException;
      void CloseConnection();
+
+     String GetProtocolName();
 
      long GetServerBeginTime();
 }

@@ -23,7 +23,7 @@ public class MQTTClient implements BaseClient{
     }
 
     @Override
-    public String SendStringCreateNewConnection(String sData) throws IOException {
+    public void SendStringCreateNewConnection(String sData) throws IOException {
 
         int qos = 1;
 
@@ -43,7 +43,6 @@ public class MQTTClient implements BaseClient{
         } catch (MqttException e) {
             e.printStackTrace();
         }
-        return null;
     }
 
     @Override
@@ -62,19 +61,16 @@ public class MQTTClient implements BaseClient{
         }
     }
 
-    @Benchmark
     @Override
-    public String SendStringOverConnection(String sData) throws IOException {
+    public void SendStringOverConnection(String sData) throws IOException {
         if(!m_bIsConnected)
-            return null;
+            return;
         MqttMessage message = new MqttMessage(sData.getBytes());
         try {
             m_oMqttClient.publish(m_sTopicName,message);
         } catch (MqttException e) {
             e.printStackTrace();
         }
-
-        return "";
     }
 
     @Override
@@ -86,6 +82,11 @@ public class MQTTClient implements BaseClient{
             e.printStackTrace();
             m_bIsConnected = true;
         }
+    }
+
+    @Override
+    public String GetProtocolName() {
+        return "MQTT";
     }
 
     @Override

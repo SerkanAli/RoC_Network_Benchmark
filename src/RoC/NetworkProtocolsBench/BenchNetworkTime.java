@@ -2,11 +2,15 @@ package RoC.NetworkProtocolsBench;
 import com.sun.management.OperatingSystemMXBean;
 import org.apache.commons.net.ntp.TimeStamp;
 
+import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.security.AccessControlException;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 public class BenchNetworkTime {
@@ -15,16 +19,18 @@ public class BenchNetworkTime {
 
     private double m_nThroughput;
     private long m_nLatency;
-
-    private long m_nStartSendDataTime;
-
-    private long m_nStartProcessTime;
-    private long m_nLastTime;
-    private long m__nLastThreadTime;
-
     private float m_nSmoothLoad = 0;
     private long m_nTotalTime;
+    private double m_nTotalUsage;
+    private double m_nAvgCoreUsage;
+
+
+    private long m_nStartSendDataTime;
+    private long m_nStartProcessTime;
+    private long m__nLastThreadTime;
+
     ThreadMXBean m_oNewBean;
+    MonitoringThread m_oMonitor;
 
     public BenchNetworkTime(BaseClient oClient)
     {
@@ -43,6 +49,8 @@ public class BenchNetworkTime {
          *   CPU usage
          *
          * */
+        m_oMonitor = new MonitoringThread(10);
+        m_oMonitor.run();
         OperatingSystemMXBean operatingSystemMXBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
         m_oNewBean = ManagementFactory.getThreadMXBean();
         try
@@ -58,7 +66,6 @@ public class BenchNetworkTime {
             System.exit(0);
         }
         m_nStartProcessTime = System.nanoTime();
-        m_nLastTime = System.nanoTime();
         m__nLastThreadTime = m_oNewBean.getCurrentThreadCpuTime();
 
         m_nSmoothLoad = 0;
@@ -71,35 +78,18 @@ public class BenchNetworkTime {
         m_nStartSendDataTime = GetCurrentTime();
     }
 
-    public void Next_AfterSend()
-    {
-        m_nThroughput = m_nThroughput + GetCurrentTime() - m_nStartSendDataTime;
-        // Calculate coarse CPU usage:
+    public void Next_AfterSend() {  m_nThroughput = m_nThroughput + GetCurrentTime() - m_nStartSendDataTime; }
 
-      /*  long threadTime = m_oNewBean.getCurrentThreadCpuTime();
-        long time = System.nanoTime();
-
-        double load = (threadTime - m__nLastThreadTime) / (double)(time - m_nLastTime);
-        System.out.println("Thread: " + (threadTime - m__nLastThreadTime));
-        System.out.println("Time:  " + (double)(time - m_nLastTime));
-        System.out.println("Load: " + load);
-        // Smooth it.
-        m_nSmoothLoad += (load - m_nSmoothLoad) * 1; // damping factor, lower means less responsive, 1 means no smoothing.
-
-        // For next iteration.
-        m_nLastTime = time;
-        m__nLastThreadTime = threadTime;*/
-    }
-
-    public void End(long nFileSize)
+    public void End(float nFileSize)
     {
         long nEndTime = GetCurrentTime();
         long nServerBeginTime = m_oClient.GetServerBeginTime();
         m_nLatency = nServerBeginTime - m_nStartSendDataTime;
         if(m_nLatency < 0)
             m_nLatency = 0;
-
-
+        m_oMonitor.stopMonitor();
+        m_nTotalUsage = m_oMonitor.getTotalUsage();
+        m_nAvgCoreUsage = m_oMonitor.getAvarageUsagePerCPU();
         m_nTotalTime = System.nanoTime() - m_nStartProcessTime;
         m_nSmoothLoad = (m_oNewBean.getCurrentThreadCpuTime() - m__nLastThreadTime) / (float)m_nTotalTime;
         m_nThroughput = nFileSize / m_nThroughput;
@@ -125,6 +115,9 @@ public class BenchNetworkTime {
     {
         return m_nSmoothLoad * 100;
     }
+
+    public double GetTotalUsage() {return m_nTotalUsage;}
+    public double GetAvgCoreUsage() {return m_nAvgCoreUsage;}
 }
 
 
@@ -132,46 +125,43 @@ class BenchNetwork
 {
 
     public void BeginBenchmark(BaseClient oCLient) throws IOException {
-      //  oCLient.CreateConnection();
-        //Warm up
-      //  for(int nCount = 0; nCount < 10; nCount++)
-        //    oCLient.SendStringOverConnection("Warm Up");
-
-        //Actual Benchmark with different Mbyte sizes
-        OneBench(1, oCLient);
-       // oCLient.SetPort(6301);
-        OneBench(2, oCLient);
-        //oCLient.SetPort(6302);
-        OneBench(5, oCLient);
-       /* OneBench(10, oCLient);
-        OneBench(25, oCLient);
-        OneBench(50, oCLient);*/
+            for(float nFileSize = 0.01F; nFileSize < 100; nFileSize = nFileSize * 2)
+            {
+                for(short nIterations = 1; nIterations < 20; nIterations = (short) (nIterations + 5))
+                {
+                    OneBench(nFileSize, nIterations, oCLient);
+                }
+            }
+            WriteResultstoFile("OverWifi");
     }
 
-    void OneBench(int size, BaseClient oCLient) throws IOException {
+    private void OneBench(float nFileSize, short nIteration, BaseClient oCLient) throws IOException {
         BenchNetworkTime oTime = new BenchNetworkTime(oCLient);
-        String sData = createDataSize(size);
-        final short nIterationCount = 10;
+        String sData = createDataSize(nFileSize);
         oTime.Begin();
         oCLient.CreateConnection();
-        for(int nCount = 0; nCount < nIterationCount; nCount++) {
+        for(int nCount = 0; nCount < nIteration; nCount++) {
             oTime.Next_BeforeSend();
             oCLient.SendStringOverConnection(sData);
             oTime.Next_AfterSend();
         }
         oCLient.CloseConnection();
-        oTime.End(size * nIterationCount * 1048576);
+        oTime.End(nFileSize * nIteration * 1048576);
 
-        System.out.println("Result of "+ size +" Mybte transfer at "+ nIterationCount+" itarations is:");
+        System.out.println("Result of "+ nFileSize +" Mybte transfer at "+ nIteration+" itarations is:");
         System.out.println("Total time: " + new DecimalFormat("###.##").format( oTime.GetTotalTime()) + " sec");
         System.out.println("Throughput: " +new DecimalFormat("###.##").format( oTime.GetTroughput()) + " Mbyte per Sec");
         System.out.println("CPU Load: " + new DecimalFormat("##.##").format(oTime.GetCPULoad()) + " %");
+        System.out.println("Total Usage: " + new DecimalFormat("##.##").format(oTime.GetTotalUsage()) + " %");
+        System.out.println("Avg Core Load: " + new DecimalFormat("##.##").format(oTime.GetAvgCoreUsage()) + " %");
         System.out.println("");
+
+        CachingResults(oCLient.GetProtocolName(), String.valueOf(nFileSize), String.valueOf(nIteration), oTime);
     }
 
 
-    private static String createDataSize(int nMegabyte) {
-        int msgSize = nMegabyte * 524288;
+    private static String createDataSize(float nMegabyte) {
+        int msgSize = Math.round(nMegabyte * 524288F);
         StringBuilder sb = new StringBuilder(msgSize);
         Random rnd = new Random();
 
@@ -185,6 +175,56 @@ class BenchNetwork
         return sb.toString();
     }
 
+    List<List<String>> m_aResults = new ArrayList<>();
 
+    private void CachingResults(String sProtocol, String sFileSize, String sIteration, BenchNetworkTime oTime)
+    {
+        List<String> oRow = new ArrayList<String>(); ;
+        oRow.add(sProtocol);
+        oRow.add(sFileSize);
+        oRow.add(sIteration);
+        oRow.add(new DecimalFormat("###.##").format(oTime.GetTotalTime()));
+        oRow.add(new DecimalFormat("###.##").format(oTime.GetTroughput()));
+        oRow.add(new DecimalFormat("###.##").format(oTime.GetCPULoad()));
+        oRow.add(new DecimalFormat("###.##").format(oTime.GetAvgCoreUsage()));
+        oRow.add(new DecimalFormat("###.##").format(oTime.GetTotalUsage()));
+        m_aResults.add(oRow);
+    }
+
+
+    public void WriteResultstoFile( String sFilname)
+    {
+        FileWriter csvWriter = null;
+        try {
+            csvWriter = new FileWriter(sFilname + ".csv");
+            csvWriter.append("Protocol");
+            csvWriter.append(",");
+            csvWriter.append("Filesize");
+            csvWriter.append(",");
+            csvWriter.append("Iterations");
+            csvWriter.append(",");
+            csvWriter.append("Total Time");
+            csvWriter.append(",");
+            csvWriter.append("Throughput");
+            csvWriter.append(",");
+            csvWriter.append("Thread Load");
+            csvWriter.append(",");
+            csvWriter.append("Avg Core Load");
+            csvWriter.append(",");
+            csvWriter.append("Total Usage");
+            csvWriter.append("\n");
+
+            for (List<String> rowData : m_aResults) {
+                csvWriter.append(String.join(",", rowData));
+                csvWriter.append("\n");
+            }
+
+            csvWriter.flush();
+            csvWriter.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
 
 }

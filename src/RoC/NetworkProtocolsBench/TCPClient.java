@@ -27,7 +27,7 @@ public class TCPClient implements BaseClient {
     }
 
     @Override
-    public String SendStringCreateNewConnection(String sData) throws IOException
+    public void SendStringCreateNewConnection(String sData) throws IOException
     {
         Socket clientSocket = new Socket(m_sIPadress, m_nPort);
         DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
@@ -35,7 +35,6 @@ public class TCPClient implements BaseClient {
         outToServer.writeBytes(sData + '\n');
 
         clientSocket.close();
-        return "";
     }
 
     @Override
@@ -49,16 +48,15 @@ public class TCPClient implements BaseClient {
         }
     }
 
-    @Benchmark
     @Override
-    public String SendStringOverConnection(String sData) throws IOException {
+    public void SendStringOverConnection(String sData) throws IOException {
 
         if(!m_bIsConnected)
-            return null;
+            return;
 
         m_oOutToServer.writeBytes(sData + '\n');
 
-        return "";
+        return;
     }
 
     @Override
@@ -69,6 +67,11 @@ public class TCPClient implements BaseClient {
             e.printStackTrace();
         }
         m_bIsConnected = false;
+    }
+
+    @Override
+    public String GetProtocolName() {
+        return "TCP";
     }
 
     @Override
