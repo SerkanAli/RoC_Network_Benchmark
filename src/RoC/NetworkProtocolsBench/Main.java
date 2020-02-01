@@ -12,7 +12,7 @@ import java.security.AccessControlException;
 public class Main {
 
     private static boolean m_bUseClient = true; //true: this jar is client side/ false: this jar is Server side
-    private static short m_nProtocol = 1; // 0 = TCP / 1 = UDP / 2 = MQTT / 3 = Zigbee ...
+    private static short m_nProtocol = 0; // 0 = TCP / 1 = UDP / 2 = MQTT / 3 = Zigbee ...
 
 
     public static void main(String[] args) {
@@ -48,7 +48,7 @@ public class Main {
 
         oClient.SetPort(6300);
         //oClient.SetIPAdress("169.254.41.185"); //eth
-        oClient.SetIPAdress("192.168.178.58"); //wlan
+        oClient.SetIPAdress("192.168.178.45"); //wlan
 
         BenchNetwork oBench = new BenchNetwork();
         try {

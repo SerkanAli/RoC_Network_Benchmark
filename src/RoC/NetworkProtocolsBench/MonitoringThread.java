@@ -8,8 +8,12 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import com.sun.management.OperatingSystemMXBean;
-import java.lang.management.ManagementFactory;
-import static sun.management.ManagementFactoryHelper.getOperatingSystemMXBean;
+import oshi.SystemInfo;
+import oshi.hardware.CentralProcessor;
+import oshi.hardware.HardwareAbstractionLayer;
+import oshi.software.os.OSProcess;
+import oshi.software.os.OperatingSystem;
+
 
 public class MonitoringThread extends Thread {
 
@@ -162,41 +166,93 @@ public class MonitoringThread extends Thread {
 }
 
 class PerformanceMonitor {
-    private int  availableProcessors = getOperatingSystemMXBean().getAvailableProcessors();
-    private long lastSystemTime      = 0;
-    private long lastProcessCpuTime  = 0;
 
-    public synchronized double getCpuUsage()
+    double cpuTime =0D;
+    double uptime = 0D;
+    int nCount = 0;
+    double dAvg= 0D;
+    double dCPUAvg = 0D;
+    double dTotalAvg = 0D;
+    SystemInfo si;
+    HardwareAbstractionLayer hal ;
+    OperatingSystem os ;
+    OSProcess p ;
+    CentralProcessor cP;
+    long[] loadTicks;
+    long[][] oldTotalTicks;
+
+    PerformanceMonitor()
     {
-        if ( lastSystemTime == 0 )
-        {
-            baselineCounters();
-            return 0D;
-        }
-
-        long systemTime     = System.nanoTime();
-        long processCpuTime = 0;
-
-        if ( getOperatingSystemMXBean() instanceof OperatingSystemMXBean )
-        {
-            processCpuTime = ( (OperatingSystemMXBean) getOperatingSystemMXBean() ).getProcessCpuTime();
-        }
-
-        double cpuUsage = (double) ( processCpuTime - lastProcessCpuTime ) / ( systemTime - lastSystemTime );
-
-        lastSystemTime     = systemTime;
-        lastProcessCpuTime = processCpuTime;
-
-        return cpuUsage / availableProcessors;
+         si = new SystemInfo();
+         hal = si.getHardware();
+         os = si.getOperatingSystem();
+         p = os.getProcess(os.getProcessId());
+         cP = hal.getProcessor();
+         loadTicks = cP.getSystemCpuLoadTicks();
+         oldTotalTicks = cP.getProcessorCpuLoadTicks();
     }
 
-    private void baselineCounters()
+    public void Next()
     {
-        lastSystemTime = System.nanoTime();
+        si = new SystemInfo();
+        hal = si.getHardware();
+        os = si.getOperatingSystem();
+        p = os.getProcess(os.getProcessId());
+        cP = hal.getProcessor();
 
-        if ( getOperatingSystemMXBean() instanceof OperatingSystemMXBean )
-        {
-            lastProcessCpuTime = ( (OperatingSystemMXBean) getOperatingSystemMXBean() ).getProcessCpuTime();
+        dAvg = (dAvg * nCount + getProcessRecentCpuUsage()) / (nCount + 1);
+        dCPUAvg = (dCPUAvg * nCount + getCPULoad()) / (nCount + 1);
+        dTotalAvg = (dTotalAvg * nCount + getTotalLoad()) / (nCount + 1);
+        nCount++;
+    }
+
+    public double GetAvarageThreadUsage()
+    {
+        return dAvg;
+    }
+    public double GetAvarageCPUusage()
+    {
+        return dCPUAvg;
+    }
+
+    public double GetTotalUsage()
+    {
+        return dTotalAvg;
+    }
+
+    //public double Get
+
+    private double getProcessRecentCpuUsage() {
+        double output = 0d;
+
+
+        if (cpuTime != 0) {
+            double uptimeDiff = p.getUpTime() - uptime;
+            double cpuDiff = (p.getKernelTime() + p.getUserTime()) - cpuTime;
+            output = cpuDiff / uptimeDiff;
+        } else {
+            output = ((double) (p.getKernelTime() + p.getUserTime())) / (double) p.getUserTime();
         }
+
+        // Record for next invocation
+        uptime = p.getUpTime();
+        cpuTime = p.getKernelTime() + p.getUserTime();
+        return output / hal.getProcessor().getLogicalProcessorCount();
+    }
+
+    private double getCPULoad(){
+        double dLoad = cP.getSystemCpuLoadBetweenTicks(loadTicks);
+        loadTicks = cP.getSystemCpuLoadTicks();
+        return dLoad;
+    }
+
+    private double getTotalLoad()
+    {
+        double[] dLoad = cP.getProcessorCpuLoadBetweenTicks(oldTotalTicks);
+        oldTotalTicks = cP.getProcessorCpuLoadTicks();
+        double sum = 0;
+        for (int i = 0; i < dLoad.length; i++)
+            sum += dLoad[i];
+        return sum / dLoad.length;
     }
 }
