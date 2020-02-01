@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.net.SocketException;
 
 public class TCPClient implements BaseClient {
     private int m_nPort =0;
@@ -53,9 +54,11 @@ public class TCPClient implements BaseClient {
 
         if(!m_bIsConnected)
             return;
+        try {
+            m_oOutToServer.writeBytes(sData + '\n');
+        }catch( SocketException e){
 
-        m_oOutToServer.writeBytes(sData + '\n');
-
+        }
         return;
     }
 

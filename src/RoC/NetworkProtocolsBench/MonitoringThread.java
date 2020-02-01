@@ -1,13 +1,15 @@
 package RoC.NetworkProtocolsBench;
 
 import java.lang.management.ManagementFactory;
-import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.ThreadMXBean;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import com.sun.management.OperatingSystemMXBean;
+import java.lang.management.ManagementFactory;
+import static sun.management.ManagementFactoryHelper.getOperatingSystemMXBean;
 
 public class MonitoringThread extends Thread {
 
@@ -16,7 +18,7 @@ public class MonitoringThread extends Thread {
 
     private Map<Long, ThreadTime> threadTimeMap = new HashMap<Long, ThreadTime>();
     private ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
-    private OperatingSystemMXBean opBean = ManagementFactory.getOperatingSystemMXBean();
+    private OperatingSystemMXBean opBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
 
     public MonitoringThread(long refreshInterval) {
         this.refreshInterval = refreshInterval;
@@ -155,6 +157,46 @@ public class MonitoringThread extends Thread {
 
         public void setCurrent(long current) {
             this.current = current;
+        }
+    }
+}
+
+class PerformanceMonitor {
+    private int  availableProcessors = getOperatingSystemMXBean().getAvailableProcessors();
+    private long lastSystemTime      = 0;
+    private long lastProcessCpuTime  = 0;
+
+    public synchronized double getCpuUsage()
+    {
+        if ( lastSystemTime == 0 )
+        {
+            baselineCounters();
+            return 0D;
+        }
+
+        long systemTime     = System.nanoTime();
+        long processCpuTime = 0;
+
+        if ( getOperatingSystemMXBean() instanceof OperatingSystemMXBean )
+        {
+            processCpuTime = ( (OperatingSystemMXBean) getOperatingSystemMXBean() ).getProcessCpuTime();
+        }
+
+        double cpuUsage = (double) ( processCpuTime - lastProcessCpuTime ) / ( systemTime - lastSystemTime );
+
+        lastSystemTime     = systemTime;
+        lastProcessCpuTime = processCpuTime;
+
+        return cpuUsage / availableProcessors;
+    }
+
+    private void baselineCounters()
+    {
+        lastSystemTime = System.nanoTime();
+
+        if ( getOperatingSystemMXBean() instanceof OperatingSystemMXBean )
+        {
+            lastProcessCpuTime = ( (OperatingSystemMXBean) getOperatingSystemMXBean() ).getProcessCpuTime();
         }
     }
 }

@@ -4,14 +4,17 @@ import org.apache.commons.net.ntp.TimeStamp;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import com.sun.management.ThreadMXBean;
+
 import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadMXBean;
 import java.security.AccessControlException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+
+import static java.lang.management.ManagementFactory.getPlatformMXBean;
 
 public class BenchNetworkTime {
 
@@ -31,6 +34,7 @@ public class BenchNetworkTime {
 
     ThreadMXBean m_oNewBean;
     MonitoringThread m_oMonitor;
+    PerformanceMonitor m_oPerformance;
 
     public BenchNetworkTime(BaseClient oClient)
     {
@@ -49,10 +53,11 @@ public class BenchNetworkTime {
          *   CPU usage
          *
          * */
-        m_oMonitor = new MonitoringThread(10);
-        m_oMonitor.run();
-        OperatingSystemMXBean operatingSystemMXBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
-        m_oNewBean = ManagementFactory.getThreadMXBean();
+        m_oMonitor = new MonitoringThread(1000);
+        m_oPerformance = new PerformanceMonitor();
+        m_oPerformance.getCpuUsage();
+        OperatingSystemMXBean operatingSystemMXBean = getPlatformMXBean(OperatingSystemMXBean.class);
+        m_oNewBean = (ThreadMXBean) ManagementFactory.getThreadMXBean();
         try
         {
             if (m_oNewBean.isThreadCpuTimeSupported())
@@ -78,7 +83,11 @@ public class BenchNetworkTime {
         m_nStartSendDataTime = GetCurrentTime();
     }
 
-    public void Next_AfterSend() {  m_nThroughput = m_nThroughput + GetCurrentTime() - m_nStartSendDataTime; }
+    public void Next_AfterSend()
+    {
+        m_nThroughput = m_nThroughput + GetCurrentTime() - m_nStartSendDataTime;
+        System.out.println("CPU Load is: " + m_oPerformance.getCpuUsage());
+    }
 
     public void End(float nFileSize)
     {
@@ -125,9 +134,9 @@ class BenchNetwork
 {
 
     public void BeginBenchmark(BaseClient oCLient) throws IOException {
-            for(float nFileSize = 0.01F; nFileSize < 100; nFileSize = nFileSize * 2)
+            for(float nFileSize = 1F; nFileSize < 40; nFileSize = nFileSize * 2)
             {
-                for(short nIterations = 1; nIterations < 20; nIterations = (short) (nIterations + 5))
+                for(short nIterations = 1; nIterations < 7; nIterations = (short) (nIterations + 5))
                 {
                     OneBench(nFileSize, nIterations, oCLient);
                 }
@@ -183,11 +192,11 @@ class BenchNetwork
         oRow.add(sProtocol);
         oRow.add(sFileSize);
         oRow.add(sIteration);
-        oRow.add(new DecimalFormat("###.##").format(oTime.GetTotalTime()));
-        oRow.add(new DecimalFormat("###.##").format(oTime.GetTroughput()));
-        oRow.add(new DecimalFormat("###.##").format(oTime.GetCPULoad()));
-        oRow.add(new DecimalFormat("###.##").format(oTime.GetAvgCoreUsage()));
-        oRow.add(new DecimalFormat("###.##").format(oTime.GetTotalUsage()));
+        oRow.add(new DecimalFormat("###.##").format(oTime.GetTotalTime()).replace(',','.'));
+        oRow.add(new DecimalFormat("###.##").format(oTime.GetTroughput()).replace(',','.'));
+        oRow.add(new DecimalFormat("###.##").format(oTime.GetCPULoad()).replace(',','.'));
+        oRow.add(new DecimalFormat("###.##").format(oTime.GetAvgCoreUsage()).replace(',','.'));
+        oRow.add(new DecimalFormat("###.##").format(oTime.GetTotalUsage()).replace(',','.'));
         m_aResults.add(oRow);
     }
 
