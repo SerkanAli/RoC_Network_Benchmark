@@ -170,8 +170,8 @@ class PerformanceMonitor {
     double cpuTime =0D;
     double uptime = 0D;
     int nCount = 0;
-    double dAvg= 0D;
-    double dCPUAvg = 0D;
+    double dAvgThread = 0D;
+    double dAvgCore = 0D;
     double dTotalAvg = 0D;
     SystemInfo si;
     HardwareAbstractionLayer hal ;
@@ -200,19 +200,19 @@ class PerformanceMonitor {
         p = os.getProcess(os.getProcessId());
         cP = hal.getProcessor();
 
-        dAvg = (dAvg * nCount + getProcessRecentCpuUsage()) / (nCount + 1);
-        dCPUAvg = (dCPUAvg * nCount + getCPULoad()) / (nCount + 1);
+        dAvgThread = (dAvgThread * nCount + getProcessRecentCpuUsage()) / (nCount + 1);
+        dAvgCore = (dAvgCore * nCount + getCPULoad()) / (nCount + 1);
         dTotalAvg = (dTotalAvg * nCount + getTotalLoad()) / (nCount + 1);
         nCount++;
     }
 
     public double GetAvarageThreadUsage()
     {
-        return dAvg;
+        return dAvgThread;
     }
-    public double GetAvarageCPUusage()
+    public double GetAvarageCoreusage()
     {
-        return dCPUAvg;
+        return dAvgCore;
     }
 
     public double GetTotalUsage()
@@ -251,8 +251,9 @@ class PerformanceMonitor {
         double[] dLoad = cP.getProcessorCpuLoadBetweenTicks(oldTotalTicks);
         oldTotalTicks = cP.getProcessorCpuLoadTicks();
         double sum = 0;
-        for (int i = 0; i < dLoad.length; i++)
-            sum += dLoad[i];
-        return sum / dLoad.length;
+        for (int i = 0; i < dLoad.length; i++) {
+            sum = Math.max(sum, dLoad[i]);
+        }
+        return sum;
     }
 }

@@ -75,7 +75,7 @@ public class BenchNetworkTime {
             m_nLatency = 0;
         m_oMonitor.stopMonitor();
         m_nTotalUsage = m_oPerformance.GetTotalUsage();
-        m_nAvgCoreUsage =  m_oPerformance.GetAvarageCPUusage();
+        m_nAvgCoreUsage =  m_oPerformance.GetAvarageCoreusage();
         m_nTotalTime = GetCurrentTime() - m_nStartProcessTime;
         m_nSmoothLoad = m_oPerformance.GetAvarageThreadUsage();
         m_nThroughput = nFileSize / m_nThroughput;
