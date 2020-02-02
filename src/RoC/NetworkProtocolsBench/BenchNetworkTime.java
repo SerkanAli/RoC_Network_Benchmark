@@ -11,12 +11,14 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 
 import static java.lang.management.ManagementFactory.getPlatformMXBean;
 
 public class BenchNetworkTime {
 
     private BaseClient m_oClient;
+    private Semaphore m_oSemaphore;
 
     private double m_nThroughput;
     private long m_nLatency;
@@ -32,9 +34,10 @@ public class BenchNetworkTime {
     MonitoringThread m_oMonitor;
     PerformanceMonitor m_oPerformance;
 
-    public BenchNetworkTime(BaseClient oClient)
+    public BenchNetworkTime(BaseClient oClient,  Semaphore semaphore)
     {
         m_oClient = oClient;
+        m_oSemaphore = semaphore;
     }
 
     public static long GetCurrentTime()
@@ -50,7 +53,7 @@ public class BenchNetworkTime {
          *
          * */
         m_oMonitor = new MonitoringThread(1000);
-        m_oPerformance = new PerformanceMonitor();
+        m_oPerformance = new PerformanceMonitor(m_oSemaphore);
         m_oPerformance.Next();
         m_nStartProcessTime = GetCurrentTime();
         m_nThroughput = 0;
@@ -127,45 +130,51 @@ class BenchNetworkThreadPool
 
     public void BeginBench()
     {
-        List<BenchNetwork> aClientList = new ArrayList<>();
-        int nPort = 0;
-        if(m_nProtocol == 0)
-            nPort = 6300;
-        else
-            nPort = 63005;
-
-        for(int nCount = 0; nCount < 5; nCount++)
-        {
-            BaseClient oClient;
-            if (m_nProtocol == 0 /*is TCP*/) {
-                oClient = new TCPClient();
-            } else if (m_nProtocol == 1 /*is UDP*/) {
-                oClient = new UDPClient();
-            } else if (m_nProtocol == 2) {
-                oClient = new MQTTClient();
-            } else
-                oClient = new UDPClient();
-
-            oClient.SetPort(nPort + nCount);
-            oClient.SetIPAdress(m_sIPAdress); //wlan
-             BenchNetwork oClientBench = new BenchNetwork(oClient, "5", String.valueOf(nCount));
-            this.threadPool.execute(oClientBench);
-            aClientList.add(oClientBench);
-        }
-
         List<List<String>> aResults = new ArrayList<>();
-        for(int nIndex = 0; nIndex < aClientList.size(); nIndex++) {
-               while (aClientList.get(nIndex).IsRunnign()) {
-                   try {
-                       Thread.sleep(1000);
-                   } catch (InterruptedException e) {
-                       e.printStackTrace();
-                   }
-               }
-               aResults.addAll(aClientList.get(nIndex).GetResults());
-        }
+        for(int nThreadCount = 1 ; nThreadCount <= 5; nThreadCount++) {
+            Semaphore semaphore = new Semaphore(1);
+            List<BenchNetwork> aClientList = new ArrayList<>();
+            int nPort = 0;
+            if (m_nProtocol == 0)
+                nPort = 6300;
+            else
+                nPort = 63005;
 
-        WriteResultstoFile("5ThreadTCPOverWifi", aResults);
+            for (int nCount = 0; nCount < nThreadCount; nCount++) {
+                BaseClient oClient;
+                if (m_nProtocol == 0 /*is TCP*/) {
+                    oClient = new TCPClient();
+                } else if (m_nProtocol == 1 /*is UDP*/) {
+                    oClient = new UDPClient();
+                } else if (m_nProtocol == 2) {
+                    oClient = new MQTTClient();
+                } else
+                    oClient = new UDPClient();
+
+                oClient.SetPort(nPort + nCount);
+                oClient.SetIPAdress(m_sIPAdress); //wlan
+                BenchNetwork oClientBench = new BenchNetwork(oClient, String.valueOf(nThreadCount), String.valueOf(nCount), semaphore);
+                this.threadPool.execute(oClientBench);
+                aClientList.add(oClientBench);
+            }
+
+
+            for (int nIndex = 0; nIndex < aClientList.size(); nIndex++) {
+                while (aClientList.get(nIndex).IsRunnign()) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                aResults.addAll(aClientList.get(nIndex).GetResults());
+            }
+        }
+        String sProtocol;
+        if(m_nProtocol == 0) sProtocol = "TCP";
+        else if(m_nProtocol == 1) sProtocol = "UDP";
+        else sProtocol = "MQTT";
+        WriteResultstoFile(sProtocol+" POverWifi", aResults);
 
     }
 
@@ -175,28 +184,28 @@ class BenchNetworkThreadPool
         try {
             csvWriter = new FileWriter(sFilname + ".csv");
             csvWriter.append("Protocol");
-            csvWriter.append(",");
+            csvWriter.append(":");
             csvWriter.append("Filesize");
-            csvWriter.append(",");
+            csvWriter.append(":");
             csvWriter.append("ThreadCount");
-            csvWriter.append(",");
+            csvWriter.append(":");
             csvWriter.append("ThreadIndex");
-            csvWriter.append(",");
+            csvWriter.append(":");
             csvWriter.append("Iterations");
-            csvWriter.append(",");
+            csvWriter.append(":");
             csvWriter.append("Total Time");
-            csvWriter.append(",");
+            csvWriter.append(":");
             csvWriter.append("Throughput");
-            csvWriter.append(",");
+            csvWriter.append(":");
             csvWriter.append("Thread Load");
-            csvWriter.append(",");
+            csvWriter.append(":");
             csvWriter.append("Avg Core Load");
-            csvWriter.append(",");
+            csvWriter.append(":");
             csvWriter.append("Total Usage");
             csvWriter.append("\n");
 
             for (List<String> rowData : aResults) {
-                csvWriter.append(String.join(",", rowData));
+                csvWriter.append(String.join(":", rowData));
                 csvWriter.append("\n");
             }
 
@@ -216,11 +225,13 @@ class BenchNetwork implements Runnable
     protected  String m_sThreadCount;
     protected  String m_sThreadIndex;
     protected  boolean m_bIsRunning = true;
-    BenchNetwork(BaseClient oClient, String sThreadCount, String sThreadIndex)
+    protected   Semaphore m_oSemaphore;
+    BenchNetwork(BaseClient oClient, String sThreadCount, String sThreadIndex,  Semaphore semaphore)
     {
         m_oClient = oClient;
         m_sThreadCount = sThreadCount;
         m_sThreadIndex = sThreadIndex;
+        m_oSemaphore = semaphore;
     }
     public boolean IsRunnign()
     {
@@ -237,7 +248,7 @@ class BenchNetwork implements Runnable
     }
 
     protected void BeginBenchmark(BaseClient oCLient) throws IOException {
-            for(float nFileSize = 1F; nFileSize < 40; nFileSize = nFileSize * 2)
+            for(float nFileSize = 1F; nFileSize < 5; nFileSize = nFileSize * 2)
             {
                 for(short nIterations = 1; nIterations < 7; nIterations = (short) (nIterations + 5))
                 {
@@ -247,7 +258,7 @@ class BenchNetwork implements Runnable
     }
 
     private void OneBench(float nFileSize, short nIteration, BaseClient oCLient) throws IOException {
-        BenchNetworkTime oTime = new BenchNetworkTime(oCLient);
+        BenchNetworkTime oTime = new BenchNetworkTime(oCLient, m_oSemaphore);
         String sData = createDataSize(nFileSize);
         oTime.Begin();
         oCLient.CreateConnection();
@@ -296,11 +307,11 @@ class BenchNetwork implements Runnable
         oRow.add(m_sThreadCount);
         oRow.add(m_sThreadIndex);
         oRow.add(sIteration);
-        oRow.add(new DecimalFormat("###.##").format(oTime.GetTotalTime()).replace(',','.'));
-        oRow.add(new DecimalFormat("###.##").format(oTime.GetTroughput()).replace(',','.'));
-        oRow.add(new DecimalFormat("###.##").format(oTime.GetThreadLoad()).replace(',','.'));
-        oRow.add(new DecimalFormat("###.##").format(oTime.GetAvgCoreUsage()).replace(',','.'));
-        oRow.add(new DecimalFormat("###.##").format(oTime.GetTotalUsage()).replace(',','.'));
+        oRow.add(new DecimalFormat("###.##").format(oTime.GetTotalTime()));
+        oRow.add(new DecimalFormat("###.##").format(oTime.GetTroughput()));
+        oRow.add(new DecimalFormat("###.##").format(oTime.GetThreadLoad()));
+        oRow.add(new DecimalFormat("###.##").format(oTime.GetAvgCoreUsage()));
+        oRow.add(new DecimalFormat("###.##").format(oTime.GetTotalUsage()));
         m_aResults.add(oRow);
     }
 

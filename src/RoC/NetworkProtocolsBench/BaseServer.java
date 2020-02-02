@@ -71,7 +71,7 @@ public interface BaseServer {
     protected boolean      isStopped    = false;
     protected Thread       runningThread= null;
     protected ExecutorService threadPool =
-            Executors.newFixedThreadPool(10);
+            Executors.newFixedThreadPool(15);
 
     public ThreadPooledServer(){
        //BaseServer
@@ -83,7 +83,7 @@ public interface BaseServer {
             this.runningThread = Thread.currentThread();
         }
        // openServerSocket();
-        this.threadPool.execute(new WorkerRunnable(0,6300));
+       this.threadPool.execute(new WorkerRunnable(0,6300));
         this.threadPool.execute(new WorkerRunnable(0,6301));
         this.threadPool.execute(new WorkerRunnable(0,6302));
         this.threadPool.execute(new WorkerRunnable(0,6303));
@@ -93,7 +93,8 @@ public interface BaseServer {
         this.threadPool.execute(new WorkerRunnable(1,6307));
         this.threadPool.execute(new WorkerRunnable(1,6308));
         this.threadPool.execute(new WorkerRunnable(1,6309));
-        
+         this.threadPool.execute(new WorkerRunnable(2,1883));
+
 
         while(! isStopped()){
             try {

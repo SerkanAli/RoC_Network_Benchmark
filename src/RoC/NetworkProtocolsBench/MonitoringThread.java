@@ -7,6 +7,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+
 import com.sun.management.OperatingSystemMXBean;
 import oshi.SystemInfo;
 import oshi.hardware.CentralProcessor;
@@ -180,20 +183,25 @@ class PerformanceMonitor {
     CentralProcessor cP;
     long[] loadTicks;
     long[][] oldTotalTicks;
+    Semaphore m_oSemaphore;
 
-    PerformanceMonitor()
+    PerformanceMonitor(Semaphore oSemo)
     {
-         si = new SystemInfo();
+        m_oSemaphore = oSemo;
+        while(! m_oSemaphore.tryAcquire());
+        si = new SystemInfo();
          hal = si.getHardware();
          os = si.getOperatingSystem();
          p = os.getProcess(os.getProcessId());
          cP = hal.getProcessor();
          loadTicks = cP.getSystemCpuLoadTicks();
          oldTotalTicks = cP.getProcessorCpuLoadTicks();
+         m_oSemaphore.release();
     }
 
     public void Next()
     {
+        while(!m_oSemaphore.tryAcquire());
         si = new SystemInfo();
         hal = si.getHardware();
         os = si.getOperatingSystem();
@@ -204,6 +212,7 @@ class PerformanceMonitor {
         dAvgCore = (dAvgCore * nCount + getCPULoad()) / (nCount + 1);
         dTotalAvg = (dTotalAvg * nCount + getTotalLoad()) / (nCount + 1);
         nCount++;
+        m_oSemaphore.release();
     }
 
     public double GetAvarageThreadUsage()
@@ -252,8 +261,9 @@ class PerformanceMonitor {
         oldTotalTicks = cP.getProcessorCpuLoadTicks();
         double sum = 0;
         for (int i = 0; i < dLoad.length; i++) {
-            sum = Math.max(sum, dLoad[i]);
+            //sum = Math.max(sum, dLoad[i]);
+            sum += dLoad[i];
         }
-        return sum;
+        return sum / dLoad.length;
     }
 }

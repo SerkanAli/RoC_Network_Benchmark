@@ -26,7 +26,7 @@ public class MQTTServer implements BaseServer, MqttCallback {
             m_oClient.setCallback(this);
             m_oClient.subscribe(m_sTopic);
 
-            System.out.println("Listening to Port ...");
+            System.out.println("Listening to Port MQTT ...");
 
 
         } catch (MqttException e) {
