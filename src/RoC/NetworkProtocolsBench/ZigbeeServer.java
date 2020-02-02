@@ -18,6 +18,11 @@ public class ZigbeeServer implements BaseServer {
     }
 
     @Override
+    public boolean NeedLoop() {
+        return false;
+    }
+
+    @Override
     public void ShutDownServer() {
 
     }

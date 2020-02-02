@@ -51,6 +51,11 @@ public class TCPServer implements BaseServer {
     }
 
     @Override
+    public boolean NeedLoop() {
+        return true;
+    }
+
+    @Override
     public void ShutDownServer()
     {
         m_bShutdown = true;

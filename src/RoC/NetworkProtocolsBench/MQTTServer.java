@@ -36,6 +36,11 @@ public class MQTTServer implements BaseServer, MqttCallback {
     }
 
     @Override
+    public boolean NeedLoop() {
+        return false;
+    }
+
+    @Override
     public void ShutDownServer() {
 
     }

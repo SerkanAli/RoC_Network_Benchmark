@@ -6,8 +6,11 @@ import java.io.IOException;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static java.lang.management.ManagementFactory.getPlatformMXBean;
 
@@ -106,11 +109,134 @@ public class BenchNetworkTime {
     public double GetAvgCoreUsage() {return m_nAvgCoreUsage * 100D;}
 }
 
-
-class BenchNetwork
+class BenchNetworkThreadPool
 {
+    protected ExecutorService threadPool = Executors.newFixedThreadPool(10);
+    protected Thread       runningThread= null;
+    protected String m_sIPAdress = "";
+    protected  int m_nProtocol;
+    BenchNetworkThreadPool(String IPAdress, int nProtocol)
+    {
+        m_sIPAdress = IPAdress;
+        m_nProtocol = nProtocol;
 
-    public void BeginBenchmark(BaseClient oCLient) throws IOException {
+        synchronized(this){
+            this.runningThread = Thread.currentThread();
+        }
+    }
+
+    public void BeginBench()
+    {
+        List<BenchNetwork> aClientList = new ArrayList<>();
+        int nPort = 0;
+        if(m_nProtocol == 0)
+            nPort = 6300;
+        else
+            nPort = 63005;
+
+        for(int nCount = 0; nCount < 5; nCount++)
+        {
+            BaseClient oClient;
+            if (m_nProtocol == 0 /*is TCP*/) {
+                oClient = new TCPClient();
+            } else if (m_nProtocol == 1 /*is UDP*/) {
+                oClient = new UDPClient();
+            } else if (m_nProtocol == 2) {
+                oClient = new MQTTClient();
+            } else
+                oClient = new UDPClient();
+
+            oClient.SetPort(nPort + nCount);
+            oClient.SetIPAdress(m_sIPAdress); //wlan
+             BenchNetwork oClientBench = new BenchNetwork(oClient, "5", String.valueOf(nCount));
+            this.threadPool.execute(oClientBench);
+            aClientList.add(oClientBench);
+        }
+
+        List<List<String>> aResults = new ArrayList<>();
+        for(int nIndex = 0; nIndex < aClientList.size(); nIndex++) {
+               while (aClientList.get(nIndex).IsRunnign()) {
+                   try {
+                       Thread.sleep(1000);
+                   } catch (InterruptedException e) {
+                       e.printStackTrace();
+                   }
+               }
+               aResults.addAll(aClientList.get(nIndex).GetResults());
+        }
+
+        WriteResultstoFile("5ThreadTCPOverWifi", aResults);
+
+    }
+
+    public void WriteResultstoFile( String sFilname,  List<List<String>> aResults)
+    {
+        FileWriter csvWriter = null;
+        try {
+            csvWriter = new FileWriter(sFilname + ".csv");
+            csvWriter.append("Protocol");
+            csvWriter.append(",");
+            csvWriter.append("Filesize");
+            csvWriter.append(",");
+            csvWriter.append("ThreadCount");
+            csvWriter.append(",");
+            csvWriter.append("ThreadIndex");
+            csvWriter.append(",");
+            csvWriter.append("Iterations");
+            csvWriter.append(",");
+            csvWriter.append("Total Time");
+            csvWriter.append(",");
+            csvWriter.append("Throughput");
+            csvWriter.append(",");
+            csvWriter.append("Thread Load");
+            csvWriter.append(",");
+            csvWriter.append("Avg Core Load");
+            csvWriter.append(",");
+            csvWriter.append("Total Usage");
+            csvWriter.append("\n");
+
+            for (List<String> rowData : aResults) {
+                csvWriter.append(String.join(",", rowData));
+                csvWriter.append("\n");
+            }
+
+            csvWriter.flush();
+            csvWriter.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+}
+
+
+class BenchNetwork implements Runnable
+{
+    protected  BaseClient m_oClient;
+    protected  String m_sThreadCount;
+    protected  String m_sThreadIndex;
+    protected  boolean m_bIsRunning = true;
+    BenchNetwork(BaseClient oClient, String sThreadCount, String sThreadIndex)
+    {
+        m_oClient = oClient;
+        m_sThreadCount = sThreadCount;
+        m_sThreadIndex = sThreadIndex;
+    }
+    public boolean IsRunnign()
+    {
+        return m_bIsRunning;
+    }
+    @Override
+    public void run() {
+        try {
+            BeginBenchmark(m_oClient);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        m_bIsRunning = false;
+    }
+
+    protected void BeginBenchmark(BaseClient oCLient) throws IOException {
             for(float nFileSize = 1F; nFileSize < 40; nFileSize = nFileSize * 2)
             {
                 for(short nIterations = 1; nIterations < 7; nIterations = (short) (nIterations + 5))
@@ -118,7 +244,6 @@ class BenchNetwork
                     OneBench(nFileSize, nIterations, oCLient);
                 }
             }
-            WriteResultstoFile("OverWifi");
     }
 
     private void OneBench(float nFileSize, short nIteration, BaseClient oCLient) throws IOException {
@@ -168,6 +293,8 @@ class BenchNetwork
         List<String> oRow = new ArrayList<String>(); ;
         oRow.add(sProtocol);
         oRow.add(sFileSize);
+        oRow.add(m_sThreadCount);
+        oRow.add(m_sThreadIndex);
         oRow.add(sIteration);
         oRow.add(new DecimalFormat("###.##").format(oTime.GetTotalTime()).replace(',','.'));
         oRow.add(new DecimalFormat("###.##").format(oTime.GetTroughput()).replace(',','.'));
@@ -177,40 +304,10 @@ class BenchNetwork
         m_aResults.add(oRow);
     }
 
-
-    public void WriteResultstoFile( String sFilname)
+    public List<List<String>> GetResults()
     {
-        FileWriter csvWriter = null;
-        try {
-            csvWriter = new FileWriter(sFilname + ".csv");
-            csvWriter.append("Protocol");
-            csvWriter.append(",");
-            csvWriter.append("Filesize");
-            csvWriter.append(",");
-            csvWriter.append("Iterations");
-            csvWriter.append(",");
-            csvWriter.append("Total Time");
-            csvWriter.append(",");
-            csvWriter.append("Throughput");
-            csvWriter.append(",");
-            csvWriter.append("Thread Load");
-            csvWriter.append(",");
-            csvWriter.append("Avg Core Load");
-            csvWriter.append(",");
-            csvWriter.append("Total Usage");
-            csvWriter.append("\n");
-
-            for (List<String> rowData : m_aResults) {
-                csvWriter.append(String.join(",", rowData));
-                csvWriter.append("\n");
-            }
-
-            csvWriter.flush();
-            csvWriter.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
+        return m_aResults;
     }
+
 
 }

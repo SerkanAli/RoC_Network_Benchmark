@@ -46,6 +46,11 @@ public class UDPServer implements BaseServer
     }
 
     @Override
+    public boolean NeedLoop() {
+        return true;
+    }
+
+    @Override
     public void ShutDownServer(){}
 
 
