@@ -21,7 +21,7 @@ public class MQTTServer implements BaseServer, MqttCallback {
     public void ListentoPort() throws IOException {
 
         try {
-           m_oClient = new MqttClient("tcp://192.168.178.45:1883", "Sending");
+           m_oClient = new MqttClient("tcp://192.168.178.58:1883", "Sending");
             m_oClient.connect();
             m_oClient.setCallback(this);
             m_oClient.subscribe(m_sTopic);

@@ -260,10 +260,13 @@ class PerformanceMonitor {
         double[] dLoad = cP.getProcessorCpuLoadBetweenTicks(oldTotalTicks);
         oldTotalTicks = cP.getProcessorCpuLoadTicks();
         double sum = 0;
+        int divider = dLoad.length;
         for (int i = 0; i < dLoad.length; i++) {
             //sum = Math.max(sum, dLoad[i]);
             sum += dLoad[i];
+            if(dLoad[i] == 0d)
+                divider--;
         }
-        return sum / dLoad.length;
+        return sum / divider;
     }
 }

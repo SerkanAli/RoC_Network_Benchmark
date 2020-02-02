@@ -75,7 +75,8 @@ public class MQTTClient implements BaseClient{
     @Override
     public void CloseConnection() {
         try {
-            m_oMqttClient.close(true);
+            m_oMqttClient.disconnect();
+           // m_oMqttClient.close(true);
             m_bIsConnected = false;
         } catch (MqttException e) {
             e.printStackTrace();
