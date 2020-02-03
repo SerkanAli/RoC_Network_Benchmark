@@ -52,7 +52,7 @@ public class BenchNetworkTime {
          *   CPU usage
          *
          * */
-        m_oMonitor = new MonitoringThread(1000);
+        m_oMonitor = new MonitoringThread();
         m_oPerformance = new PerformanceMonitor(m_oSemaphore);
         m_oPerformance.Next();
         m_nStartProcessTime = GetCurrentTime();
@@ -83,7 +83,7 @@ public class BenchNetworkTime {
         m_nTotalUsage = m_oPerformance.GetTotalUsage();
         m_nAvgCoreUsage =  m_oPerformance.GetAvarageCoreusage();
         m_nTotalTime = GetCurrentTime() - m_nStartProcessTime;
-        m_nSmoothLoad = m_oPerformance.GetAvarageThreadUsage();
+        m_nSmoothLoad = m_oPerformance.GetAvarageThreadUsage();//m_oMonitor.getUsageByThread(Thread.currentThread());
         m_nThroughput = nFileSize / m_nThroughput;
     }
 
@@ -105,7 +105,7 @@ public class BenchNetworkTime {
 
     public double GetThreadLoad()
     {
-        return m_nSmoothLoad * 100;
+        return m_nSmoothLoad  *100D;
     }
 
     public double GetTotalUsage() {return m_nTotalUsage * 100D;}
@@ -131,7 +131,7 @@ class BenchNetworkThreadPool
     public void BeginBench()
     {
         List<List<String>> aResults = new ArrayList<>();
-        for(int nThreadCount = 8 ; nThreadCount <= 10; nThreadCount = nThreadCount * 2) {
+        for(int nThreadCount = 1 ; nThreadCount <= 10; nThreadCount = nThreadCount * 8) {
             Semaphore semaphore = new Semaphore(1);
             List<BenchNetwork> aClientList = new ArrayList<>();
             int nPort = 0;
@@ -248,7 +248,7 @@ class BenchNetwork implements Runnable
     }
 
     protected void BeginBenchmark(BaseClient oCLient) throws IOException {
-            for(float nFileSize = 0.01F; nFileSize < 100F; nFileSize = nFileSize * 2F)
+            for(float nFileSize = 0.01F; nFileSize < 5F; nFileSize = nFileSize * 2F)
             {
                 for(short nIterations = 1; nIterations < 10; nIterations = (short) (nIterations * 2))
                 {

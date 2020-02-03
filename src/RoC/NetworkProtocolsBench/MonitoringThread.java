@@ -19,25 +19,32 @@ import oshi.software.os.OperatingSystem;
 
 
 public class MonitoringThread extends Thread {
-
-    private long refreshInterval;
     private boolean stopped;
+    private boolean bNotRead = false;
 
     private Map<Long, ThreadTime> threadTimeMap = new HashMap<Long, ThreadTime>();
     private ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
     private OperatingSystemMXBean opBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
-
-    public MonitoringThread(long refreshInterval) {
-        this.refreshInterval = refreshInterval;
-
+    private long _startTime = 0l;
+    public MonitoringThread() {
         setName("MonitoringThread");
-
+        _startTime = BenchNetworkTime.GetCurrentTime();
         start();
     }
+
+
 
     @Override
     public void run() {
         while(!stopped) {
+            while(bNotRead) {
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            bNotRead = true;
             Set<Long> mappedIds;
             synchronized (threadTimeMap) {
                 mappedIds = new HashSet<Long>(threadTimeMap.keySet());
@@ -58,12 +65,6 @@ public class MonitoringThread extends Thread {
                 synchronized (threadTime) {
                     threadTime.setCurrent(threadBean.getThreadCpuTime(threadTime.getId()));
                 }
-            }
-
-            try {
-                Thread.sleep(refreshInterval);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
             }
 
             for (ThreadTime threadTime : values) {
@@ -98,28 +99,6 @@ public class MonitoringThread extends Thread {
     public void stopMonitor() {
         this.stopped = true;
     }
-
-    //Total load by all the threads in JVM
-    public double getTotalUsage() {
-        Collection<ThreadTime> values;
-        synchronized (threadTimeMap) {
-            values = new HashSet<ThreadTime>(threadTimeMap.values());
-        }
-
-        double usage = 0D;
-        for (ThreadTime threadTime : values) {
-            synchronized (threadTime) {
-                usage += (threadTime.getCurrent() - threadTime.getLast()) / (refreshInterval * 10000);
-            }
-        }
-        return usage;
-    }
-
-    // Avarage load per CPU (core)
-    public double getAvarageUsagePerCPU() {
-        return getTotalUsage() / opBean.getAvailableProcessors();
-    }
-
     //Total load by thread t
     public double getUsageByThread(Thread t) {
         ThreadTime info;
@@ -130,7 +109,8 @@ public class MonitoringThread extends Thread {
         double usage = 0D;
         if(info != null) {
             synchronized (info) {
-                usage = (info.getCurrent() - info.getLast()) / (refreshInterval * 10000);
+                usage = (threadBean.getThreadCpuTime(info.getId()) - info.getLast()) / ((BenchNetworkTime.GetCurrentTime() - _startTime)* 10000D);
+                bNotRead = false;
             }
         }
         return usage;
@@ -203,6 +183,8 @@ class PerformanceMonitor {
          cP = hal.getProcessor();
          loadTicks = cP.getSystemCpuLoadTicks();
          oldTotalTicks = cP.getProcessorCpuLoadTicks();
+        uptime = p.getUpTime();
+        cpuTime = p.getKernelTime() + p.getUserTime();
          m_oSemaphore.release();
     }
 
@@ -246,21 +228,13 @@ class PerformanceMonitor {
     //public double Get
 
     private double getProcessRecentCpuUsage() {
-        double output = 0d;
-
-
-        if (cpuTime != 0) {
-            double uptimeDiff = p.getUpTime() - uptime;
-            double cpuDiff = (p.getKernelTime() + p.getUserTime()) - cpuTime;
-            output = cpuDiff / uptimeDiff;
-        } else {
-            output = ((double) (p.getKernelTime() + p.getUserTime())) / (double) p.getUserTime();
-        }
+        double uptimeDiff = p.getUpTime() - uptime;
+        double cpuDiff = (p.getKernelTime() + p.getUserTime()) - cpuTime;
 
         // Record for next invocation
         uptime = p.getUpTime();
         cpuTime = p.getKernelTime() + p.getUserTime();
-        return output / hal.getProcessor().getLogicalProcessorCount();
+        return 1- ((cpuDiff / uptimeDiff) / hal.getProcessor().getLogicalProcessorCount());
     }
 
     private double getCPULoad(){
