@@ -71,28 +71,28 @@ public interface BaseServer {
     protected boolean      isStopped    = false;
     protected Thread       runningThread= null;
     protected ExecutorService threadPool =
-            Executors.newFixedThreadPool(15);
+            Executors.newFixedThreadPool(25);
 
     public ThreadPooledServer(){
        //BaseServer
     }
 
      @Override
-    public void run(){
-        synchronized(this){
+    public void run()
+     {
+
+         synchronized(this){
             this.runningThread = Thread.currentThread();
         }
-       // openServerSocket();
-       this.threadPool.execute(new WorkerRunnable(0,6300));
-        this.threadPool.execute(new WorkerRunnable(0,6301));
-        this.threadPool.execute(new WorkerRunnable(0,6302));
-        this.threadPool.execute(new WorkerRunnable(0,6303));
-        this.threadPool.execute(new WorkerRunnable(0,6304));
-        this.threadPool.execute(new WorkerRunnable(1,6305));
-        this.threadPool.execute(new WorkerRunnable(1,6306));
-        this.threadPool.execute(new WorkerRunnable(1,6307));
-        this.threadPool.execute(new WorkerRunnable(1,6308));
-        this.threadPool.execute(new WorkerRunnable(1,6309));
+            //Open Servers for TCP and UDP
+         final int nTCPPort = 6300;
+         final int nUDPPort = 6310;
+         for(int nIndex = 0; nIndex < 10; nIndex++)
+         {
+             this.threadPool.execute(new WorkerRunnable(0,nTCPPort + nIndex));
+             this.threadPool.execute(new WorkerRunnable(1,6310 + nIndex));
+         }
+        //Open MQTT Broker
          this.threadPool.execute(new WorkerRunnable(2,1883));
 
 

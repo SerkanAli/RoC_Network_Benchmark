@@ -131,14 +131,14 @@ class BenchNetworkThreadPool
     public void BeginBench()
     {
         List<List<String>> aResults = new ArrayList<>();
-        for(int nThreadCount = 1 ; nThreadCount <= 5; nThreadCount++) {
+        for(int nThreadCount = 1 ; nThreadCount <= 10; nThreadCount = nThreadCount * 2) {
             Semaphore semaphore = new Semaphore(1);
             List<BenchNetwork> aClientList = new ArrayList<>();
             int nPort = 0;
             if (m_nProtocol == 0)
                 nPort = 6300;
             else
-                nPort = 63005;
+                nPort = 6310;
 
             for (int nCount = 0; nCount < nThreadCount; nCount++) {
                 BaseClient oClient;
@@ -248,9 +248,9 @@ class BenchNetwork implements Runnable
     }
 
     protected void BeginBenchmark(BaseClient oCLient) throws IOException {
-            for(float nFileSize = 1F; nFileSize < 5; nFileSize = nFileSize * 2)
+            for(float nFileSize = 0.01F; nFileSize < 100F; nFileSize = nFileSize * 2F)
             {
-                for(short nIterations = 1; nIterations < 7; nIterations = (short) (nIterations + 5))
+                for(short nIterations = 1; nIterations < 10; nIterations = (short) (nIterations * 2))
                 {
                     OneBench(nFileSize, nIterations, oCLient);
                 }
@@ -278,7 +278,7 @@ class BenchNetwork implements Runnable
         System.out.println("Avg Core Load: " + new DecimalFormat("##.##").format(oTime.GetAvgCoreUsage()) + " %");
         System.out.println("");
 
-        CachingResults(oCLient.GetProtocolName(), String.valueOf(nFileSize), String.valueOf(nIteration), oTime);
+        CachingResults(oCLient.GetProtocolName(), new DecimalFormat("###.##").format( nFileSize), String.valueOf(nIteration), oTime);
     }
 
 
