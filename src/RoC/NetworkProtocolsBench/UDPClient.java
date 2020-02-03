@@ -71,8 +71,10 @@ public class UDPClient implements BaseClient
 
     @Override
     public void CloseConnection() {
-        m_odataSocket.close();
-        m_odataSocket.disconnect();
+        if(m_odataSocket != null) {
+            m_odataSocket.close();
+            m_odataSocket.disconnect();
+        }
         m_bIsConnected = false;
     }
 

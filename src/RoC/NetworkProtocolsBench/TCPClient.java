@@ -63,7 +63,8 @@ public class TCPClient implements BaseClient {
     @Override
     public void CloseConnection() {
         try {
-            m_oSocket.close();
+            if(m_oSocket != null)
+                m_oSocket.close();
         } catch (IOException e) {
             e.printStackTrace();
         }

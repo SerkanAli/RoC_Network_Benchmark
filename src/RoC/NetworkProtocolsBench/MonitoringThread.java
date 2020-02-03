@@ -153,7 +153,6 @@ class PerformanceMonitor {
     double cpuTime =0D;
     double uptime = 0D;
     int nCount = 0;
-    double dAvgThread = 0D;
     double dAvgCore = 0D;
     double dTotalAvg = 0D;
     SystemInfo si;
@@ -204,17 +203,12 @@ class PerformanceMonitor {
         p = os.getProcess(os.getProcessId());
         cP = hal.getProcessor();
 
-        dAvgThread = (dAvgThread * nCount + getProcessRecentCpuUsage()) / (nCount + 1);
         dAvgCore = (dAvgCore * nCount + getCPULoad()) / (nCount + 1);
         dTotalAvg = (dTotalAvg * nCount + getTotalLoad()) / (nCount + 1);
         nCount++;
         m_oSemaphore.release();
     }
 
-    public double GetAvarageThreadUsage()
-    {
-        return dAvgThread;
-    }
     public double GetAvarageCoreusage()
     {
         return dAvgCore;
@@ -225,19 +219,45 @@ class PerformanceMonitor {
         return dTotalAvg;
     }
 
-    //public double Get
-
-    private double getProcessRecentCpuUsage() {
+    public double getCoreLoad()
+    {
+        while(true) {
+            try {
+                if (!!m_oSemaphore.tryAcquire(0, TimeUnit.SECONDS)) break;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            ;
+        }
+        si = new SystemInfo();
+        hal = si.getHardware();
+        os = si.getOperatingSystem();
+        p = os.getProcess(os.getProcessId());
+        cP = hal.getProcessor();
+        m_oSemaphore.release();
         double uptimeDiff = p.getUpTime() - uptime;
         double cpuDiff = (p.getKernelTime() + p.getUserTime()) - cpuTime;
 
         // Record for next invocation
         uptime = p.getUpTime();
         cpuTime = p.getKernelTime() + p.getUserTime();
-        return 1- ((cpuDiff / uptimeDiff) / hal.getProcessor().getLogicalProcessorCount());
+        return ((cpuDiff / uptimeDiff) / hal.getProcessor().getLogicalProcessorCount());
+    }
+
+    private double getProcessRecentCpuUsage() {
+
+    /*    double uptimeDiff = p.getUpTime() - uptime;
+        double cpuDiff = (p.getKernelTime() + p.getUserTime()) - cpuTime;
+
+        // Record for next invocation
+        uptime = p.getUpTime();
+        cpuTime = p.getKernelTime() + p.getUserTime();
+        return 1- ((cpuDiff / uptimeDiff) / hal.getProcessor().getLogicalProcessorCount());*/
+    return 0D;
     }
 
     private double getCPULoad(){
+
         double dLoad = cP.getSystemCpuLoadBetweenTicks(loadTicks);
         loadTicks = cP.getSystemCpuLoadTicks();
         return dLoad;

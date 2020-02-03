@@ -9,7 +9,7 @@ import com.sun.management.OperatingSystemMXBean;
 public class Main {
 
     private static boolean m_bUseClient = true; //true: this jar is client side/ false: this jar is Server side
-    private static short m_nProtocol = 1; // 0 = TCP / 1 = UDP / 2 = MQTT / 3 = Zigbee ...
+    private static short m_nProtocol = 0; // 0 = TCP / 1 = UDP / 2 = MQTT / 3 = Zigbee ...
     private static String m_sIP = "192.168.178.45";
 
 
@@ -28,7 +28,7 @@ public class Main {
 
     private static void UseClient()
     {
-      BenchNetworkThreadPool oBenchClient = new BenchNetworkThreadPool(m_sIP, m_nProtocol);
+      BenchNetworkThreadPool oBenchClient = new BenchNetworkThreadPool(m_sIP);
       oBenchClient.BeginBench();
     }
 

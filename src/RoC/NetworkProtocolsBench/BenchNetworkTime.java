@@ -12,6 +12,7 @@ import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 import static java.lang.management.ManagementFactory.getPlatformMXBean;
 
@@ -81,9 +82,9 @@ public class BenchNetworkTime {
             m_nLatency = 0;
         m_oMonitor.stopMonitor();
         m_nTotalUsage = m_oPerformance.GetTotalUsage();
-        m_nAvgCoreUsage =  m_oPerformance.GetAvarageCoreusage();
+        m_nAvgCoreUsage = m_oPerformance.getCoreLoad();
         m_nTotalTime = GetCurrentTime() - m_nStartProcessTime;
-        m_nSmoothLoad = m_oPerformance.GetAvarageThreadUsage();//m_oMonitor.getUsageByThread(Thread.currentThread());
+        m_nSmoothLoad = m_oMonitor.getUsageByThread(Thread.currentThread());
         m_nThroughput = nFileSize / m_nThroughput;
     }
 
@@ -105,77 +106,79 @@ public class BenchNetworkTime {
 
     public double GetThreadLoad()
     {
-        return m_nSmoothLoad  *100D;
+        return m_nSmoothLoad;
     }
 
     public double GetTotalUsage() {return m_nTotalUsage * 100D;}
-    public double GetAvgCoreUsage() {return m_nAvgCoreUsage * 100D;}
+    public double GetAvgCoreUsage() {return m_nAvgCoreUsage *100D ;}
 }
 
 class BenchNetworkThreadPool
 {
-    protected ExecutorService threadPool = Executors.newFixedThreadPool(10);
-    protected Thread       runningThread= null;
+    protected ExecutorService threadPool = Executors.newFixedThreadPool(4);
     protected String m_sIPAdress = "";
-    protected  int m_nProtocol;
-    BenchNetworkThreadPool(String IPAdress, int nProtocol)
+
+    BenchNetworkThreadPool(String IPAdress)
     {
         m_sIPAdress = IPAdress;
-        m_nProtocol = nProtocol;
 
-        synchronized(this){
-            this.runningThread = Thread.currentThread();
-        }
     }
 
     public void BeginBench()
     {
-        List<List<String>> aResults = new ArrayList<>();
-        for(int nThreadCount = 1 ; nThreadCount <= 10; nThreadCount = nThreadCount * 8) {
-            Semaphore semaphore = new Semaphore(1);
-            List<BenchNetwork> aClientList = new ArrayList<>();
-            int nPort = 0;
-            if (m_nProtocol == 0)
-                nPort = 6300;
-            else
-                nPort = 6310;
+        for(int m_nProtocol = 0; m_nProtocol <= 2;m_nProtocol++) {
+            List<List<String>> aResults = new ArrayList<>();
+            for (int nThreadCount = 2; nThreadCount <= 4; nThreadCount = nThreadCount * 2) {
+                Semaphore semaphore = new Semaphore(1);
+                List<BenchNetwork> aClientList = new ArrayList<>();
+                int nPort = 0;
+                if (m_nProtocol == 0)
+                    nPort = 6300;
+                else
+                    nPort = 6310;
 
-            for (int nCount = 0; nCount < nThreadCount; nCount++) {
-                BaseClient oClient;
-                if (m_nProtocol == 0 /*is TCP*/) {
-                    oClient = new TCPClient();
-                } else if (m_nProtocol == 1 /*is UDP*/) {
-                    oClient = new UDPClient();
-                } else if (m_nProtocol == 2) {
-                    oClient = new MQTTClient();
-                } else
-                    oClient = new UDPClient();
+                for (int nCount = 0; nCount < nThreadCount; nCount++) {
+                    BaseClient oClient;
+                    if (m_nProtocol == 0 /*is TCP*/) {
+                        oClient = new TCPClient();
+                    } else if (m_nProtocol == 1 /*is UDP*/) {
+                        oClient = new UDPClient();
+                    } else if (m_nProtocol == 2) {
+                        oClient = new MQTTClient();
+                    } else
+                        oClient = new UDPClient();
 
-                oClient.SetPort(nPort + nCount);
-                oClient.SetIPAdress(m_sIPAdress); //wlan
-                BenchNetwork oClientBench = new BenchNetwork(oClient, String.valueOf(nThreadCount), String.valueOf(nCount), semaphore);
-                this.threadPool.execute(oClientBench);
-                aClientList.add(oClientBench);
-            }
-
-
-            for (int nIndex = 0; nIndex < aClientList.size(); nIndex++) {
-                while (aClientList.get(nIndex).IsRunnign()) {
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                    oClient.SetPort(nPort + nCount);
+                    oClient.SetIPAdress(m_sIPAdress); //wlan
+                    BenchNetwork oClientBench = new BenchNetwork(oClient, String.valueOf(nThreadCount), String.valueOf(nCount), semaphore);
+                    this.threadPool.execute(oClientBench);
+                    aClientList.add(oClientBench);
                 }
-                aResults.addAll(aClientList.get(nIndex).GetResults());
-            }
-        }
-        String sProtocol;
-        if(m_nProtocol == 0) sProtocol = "TCP";
-        else if(m_nProtocol == 1) sProtocol = "UDP";
-        else sProtocol = "MQTT";
-        WriteResultstoFile(sProtocol+" POverWifi", aResults);
 
+
+                for (int nIndex = 0; nIndex < aClientList.size(); nIndex++) {
+                    while (aClientList.get(nIndex).IsRunnign()) {
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    aResults.addAll(aClientList.get(nIndex).GetResults());
+                }
+                try {
+                    System.out.println("\n Sleping for one minute\n");
+                    Thread.sleep(60000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            String sProtocol;
+            if (m_nProtocol == 0) sProtocol = "TCP";
+            else if (m_nProtocol == 1) sProtocol = "UDP";
+            else sProtocol = "MQTT";
+            WriteResultstoFile(sProtocol + " OverEth" + new DecimalFormat("#####").format( BenchNetworkTime.GetCurrentTime()) , aResults);
+        }
     }
 
     public void WriteResultstoFile( String sFilname,  List<List<String>> aResults)
@@ -248,9 +251,9 @@ class BenchNetwork implements Runnable
     }
 
     protected void BeginBenchmark(BaseClient oCLient) throws IOException {
-            for(float nFileSize = 0.01F; nFileSize < 5F; nFileSize = nFileSize * 2F)
+            for(float nFileSize = 0.01F; nFileSize < 1F; nFileSize = nFileSize * 2F)
             {
-                for(short nIterations = 1; nIterations < 10; nIterations = (short) (nIterations * 2))
+                for(short nIterations = 1; nIterations < 5; nIterations = (short) (nIterations * 2))
                 {
                     OneBench(nFileSize, nIterations, oCLient);
                 }
@@ -274,11 +277,12 @@ class BenchNetwork implements Runnable
         System.out.println("Total time: " + new DecimalFormat("###.##").format( oTime.GetTotalTime()) + " sec");
         System.out.println("Throughput: " +new DecimalFormat("###.####").format( oTime.GetTroughput()) + " Mbyte per Sec");
         System.out.println("Thread Load: " + new DecimalFormat("##.##").format(oTime.GetThreadLoad()) + " %");
-        System.out.println("Total Usage: " + new DecimalFormat("##.##").format(oTime.GetTotalUsage()) + " %");
         System.out.println("Avg Core Load: " + new DecimalFormat("##.##").format(oTime.GetAvgCoreUsage()) + " %");
+        System.out.println("Total Usage: " + new DecimalFormat("##.##").format(oTime.GetTotalUsage()) + " %");
         System.out.println("");
 
         CachingResults(oCLient.GetProtocolName(), new DecimalFormat("###.##").format( nFileSize), String.valueOf(nIteration), oTime);
+
     }
 
 
