@@ -131,7 +131,7 @@ class BenchNetworkThreadPool
     public void BeginBench()
     {
         List<List<String>> aResults = new ArrayList<>();
-        for(int nThreadCount = 1 ; nThreadCount <= 10; nThreadCount = nThreadCount * 2) {
+        for(int nThreadCount = 8 ; nThreadCount <= 10; nThreadCount = nThreadCount * 2) {
             Semaphore semaphore = new Semaphore(1);
             List<BenchNetwork> aClientList = new ArrayList<>();
             int nPort = 0;
@@ -270,9 +270,9 @@ class BenchNetwork implements Runnable
         oCLient.CloseConnection();
         oTime.End(nFileSize * nIteration * 1048576);
 
-        System.out.println("Result of "+ nFileSize +" Mybte transfer at "+ nIteration+" itarations is:");
+        System.out.println("Result of "+ nFileSize +" Mybte transfer at "+ nIteration+" itarations in Thread "+ m_sThreadIndex + "/"+ m_sThreadCount +" is:");
         System.out.println("Total time: " + new DecimalFormat("###.##").format( oTime.GetTotalTime()) + " sec");
-        System.out.println("Throughput: " +new DecimalFormat("###.##").format( oTime.GetTroughput()) + " Mbyte per Sec");
+        System.out.println("Throughput: " +new DecimalFormat("###.####").format( oTime.GetTroughput()) + " Mbyte per Sec");
         System.out.println("Thread Load: " + new DecimalFormat("##.##").format(oTime.GetThreadLoad()) + " %");
         System.out.println("Total Usage: " + new DecimalFormat("##.##").format(oTime.GetTotalUsage()) + " %");
         System.out.println("Avg Core Load: " + new DecimalFormat("##.##").format(oTime.GetAvgCoreUsage()) + " %");
@@ -307,8 +307,8 @@ class BenchNetwork implements Runnable
         oRow.add(m_sThreadCount);
         oRow.add(m_sThreadIndex);
         oRow.add(sIteration);
-        oRow.add(new DecimalFormat("###.##").format(oTime.GetTotalTime()));
-        oRow.add(new DecimalFormat("###.##").format(oTime.GetTroughput()));
+        oRow.add(new DecimalFormat("###.####").format(oTime.GetTotalTime()));
+        oRow.add(new DecimalFormat("###.####").format(oTime.GetTroughput()));
         oRow.add(new DecimalFormat("###.##").format(oTime.GetThreadLoad()));
         oRow.add(new DecimalFormat("###.##").format(oTime.GetAvgCoreUsage()));
         oRow.add(new DecimalFormat("###.##").format(oTime.GetTotalUsage()));

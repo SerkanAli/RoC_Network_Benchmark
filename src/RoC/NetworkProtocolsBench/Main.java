@@ -9,8 +9,8 @@ import com.sun.management.OperatingSystemMXBean;
 public class Main {
 
     private static boolean m_bUseClient = true; //true: this jar is client side/ false: this jar is Server side
-    private static short m_nProtocol = 2; // 0 = TCP / 1 = UDP / 2 = MQTT / 3 = Zigbee ...
-    private static String m_sIP = "192.168.178.45";
+    private static short m_nProtocol = 1; // 0 = TCP / 1 = UDP / 2 = MQTT / 3 = Zigbee ...
+    private static String m_sIP = "192.168.178.58";
 
 
     public static void main(String[] args) {

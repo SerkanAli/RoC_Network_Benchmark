@@ -188,7 +188,14 @@ class PerformanceMonitor {
     PerformanceMonitor(Semaphore oSemo)
     {
         m_oSemaphore = oSemo;
-        while(! m_oSemaphore.tryAcquire());
+        while(true) {
+            try {
+                if (!! m_oSemaphore.tryAcquire(0, TimeUnit.SECONDS)) break;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            ;
+        }
         si = new SystemInfo();
          hal = si.getHardware();
          os = si.getOperatingSystem();
@@ -201,7 +208,14 @@ class PerformanceMonitor {
 
     public void Next()
     {
-        while(!m_oSemaphore.tryAcquire());
+        while(true) {
+            try {
+                if (!!m_oSemaphore.tryAcquire(0, TimeUnit.SECONDS)) break;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            ;
+        }
         si = new SystemInfo();
         hal = si.getHardware();
         os = si.getOperatingSystem();
