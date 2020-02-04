@@ -14,6 +14,7 @@ import com.sun.management.OperatingSystemMXBean;
 import oshi.SystemInfo;
 import oshi.hardware.CentralProcessor;
 import oshi.hardware.HardwareAbstractionLayer;
+import oshi.hardware.NetworkIF;
 import oshi.software.os.OSProcess;
 import oshi.software.os.OperatingSystem;
 
@@ -163,10 +164,12 @@ class PerformanceMonitor {
     long[] loadTicks;
     long[][] oldTotalTicks;
     Semaphore m_oSemaphore;
+    HashMap<String, Long> m_aNetRecievedBytes;
 
     PerformanceMonitor(Semaphore oSemo)
     {
         m_oSemaphore = oSemo;
+        m_aNetRecievedBytes = new HashMap<>();
         while(true) {
             try {
                 if (!! m_oSemaphore.tryAcquire(0, TimeUnit.SECONDS)) break;
@@ -203,13 +206,14 @@ class PerformanceMonitor {
         p = os.getProcess(os.getProcessId());
         cP = hal.getProcessor();
 
-        dAvgCore = (dAvgCore * nCount + getCPULoad()) / (nCount + 1);
+        dAvgCore = (dAvgCore * nCount + getCoreLoad()) / (nCount + 1);
         dTotalAvg = (dTotalAvg * nCount + getTotalLoad()) / (nCount + 1);
+        updateNetwork();
         nCount++;
         m_oSemaphore.release();
     }
 
-    public double GetAvarageCoreusage()
+    public double GetAverageCoreLoad()
     {
         return dAvgCore;
     }
@@ -219,49 +223,13 @@ class PerformanceMonitor {
         return dTotalAvg;
     }
 
-    public double getCoreLoad()
-    {
-        while(true) {
-            try {
-                if (!!m_oSemaphore.tryAcquire(0, TimeUnit.SECONDS)) break;
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            ;
-        }
-        si = new SystemInfo();
-        hal = si.getHardware();
-        os = si.getOperatingSystem();
-        p = os.getProcess(os.getProcessId());
-        cP = hal.getProcessor();
-        m_oSemaphore.release();
-        double uptimeDiff = p.getUpTime() - uptime;
-        double cpuDiff = (p.getKernelTime() + p.getUserTime()) - cpuTime;
+    public  HashMap<String, Long> GetNetworkInfo () { return  m_aNetRecievedBytes;}
 
-        // Record for next invocation
-        uptime = p.getUpTime();
-        cpuTime = p.getKernelTime() + p.getUserTime();
-        return ((cpuDiff / uptimeDiff) / hal.getProcessor().getLogicalProcessorCount());
+
+    private double getCoreLoad() {
+    return p.calculateCpuPercent() / 4D;
     }
 
-    private double getProcessRecentCpuUsage() {
-
-    /*    double uptimeDiff = p.getUpTime() - uptime;
-        double cpuDiff = (p.getKernelTime() + p.getUserTime()) - cpuTime;
-
-        // Record for next invocation
-        uptime = p.getUpTime();
-        cpuTime = p.getKernelTime() + p.getUserTime();
-        return 1- ((cpuDiff / uptimeDiff) / hal.getProcessor().getLogicalProcessorCount());*/
-    return 0D;
-    }
-
-    private double getCPULoad(){
-
-        double dLoad = cP.getSystemCpuLoadBetweenTicks(loadTicks);
-        loadTicks = cP.getSystemCpuLoadTicks();
-        return dLoad;
-    }
 
     private double getTotalLoad()
     {
@@ -270,11 +238,19 @@ class PerformanceMonitor {
         double sum = 0;
         int divider = dLoad.length;
         for (int i = 0; i < dLoad.length; i++) {
-            //sum = Math.max(sum, dLoad[i]);
             sum += dLoad[i];
-            if(dLoad[i] == 0d)
-                divider--;
         }
         return sum / divider;
+    }
+
+    private void updateNetwork() {
+        NetworkIF[] ni = hal.getNetworkIFs();
+        for (int nIndex = 0; nIndex < ni.length; nIndex++) {
+            Long nPre = m_aNetRecievedBytes.get(ni[nIndex].getDisplayName());
+            if (nPre == null)
+                nPre = Long.valueOf(0);
+
+            m_aNetRecievedBytes.put(ni[nIndex].getDisplayName(), (ni[nIndex].getBytesRecv() + nPre));
+        }
     }
 }

@@ -5,10 +5,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -82,7 +79,7 @@ public class BenchNetworkTime {
             m_nLatency = 0;
         m_oMonitor.stopMonitor();
         m_nTotalUsage = m_oPerformance.GetTotalUsage();
-        m_nAvgCoreUsage = m_oPerformance.getCoreLoad();
+        m_nAvgCoreUsage = m_oPerformance.GetAverageCoreLoad();
         m_nTotalTime = GetCurrentTime() - m_nStartProcessTime;
         m_nSmoothLoad = m_oMonitor.getUsageByThread(Thread.currentThread());
         m_nThroughput = nFileSize / m_nThroughput;
@@ -126,9 +123,23 @@ class BenchNetworkThreadPool
 
     public void BeginBench()
     {
+        //Create once same Dataset for all Thread, so Memory heap is avoided
+        Map<Float, String> aDataset = new TreeMap<Float, String>();
+        for(float nSize = Parameter.m_nFileSizeMin; nSize < Parameter.m_nFileSizeMax; nSize = nSize * 2)
+            aDataset.put(nSize,createDataSize(nSize));
+
+        //Loop to go through all Protocols
         for(int m_nProtocol = 0; m_nProtocol <= 2;m_nProtocol++) {
-            List<List<String>> aResults = new ArrayList<>();
-            for (int nThreadCount = 2; nThreadCount <= 4; nThreadCount = nThreadCount * 2) {
+            //Create Csv File to store the results
+            String sFileName;
+            if (m_nProtocol == 0) sFileName = "TCP";
+            else if (m_nProtocol == 1) sFileName = "UDP";
+            else sFileName = "MQTT";
+            sFileName = sFileName + " OverEth" + new DecimalFormat("#####").format( BenchNetworkTime.GetCurrentTime());
+            CreateFile(sFileName);
+
+            //Test different counts of threads
+            for (int nThreadCount = Parameter.m_nThreadCountMin; nThreadCount <= Parameter.m_nThreadCountMax; nThreadCount = nThreadCount * 2) {
                 Semaphore semaphore = new Semaphore(1);
                 List<BenchNetwork> aClientList = new ArrayList<>();
                 int nPort = 0;
@@ -150,11 +161,10 @@ class BenchNetworkThreadPool
 
                     oClient.SetPort(nPort + nCount);
                     oClient.SetIPAdress(m_sIPAdress); //wlan
-                    BenchNetwork oClientBench = new BenchNetwork(oClient, String.valueOf(nThreadCount), String.valueOf(nCount), semaphore);
+                    BenchNetwork oClientBench = new BenchNetwork(oClient, String.valueOf(nThreadCount), String.valueOf(nCount), semaphore, aDataset);
                     this.threadPool.execute(oClientBench);
                     aClientList.add(oClientBench);
                 }
-
 
                 for (int nIndex = 0; nIndex < aClientList.size(); nIndex++) {
                     while (aClientList.get(nIndex).IsRunnign()) {
@@ -164,28 +174,36 @@ class BenchNetworkThreadPool
                             e.printStackTrace();
                         }
                     }
-                    aResults.addAll(aClientList.get(nIndex).GetResults());
+                    WriteResultstoFile(sFileName, aClientList.get(nIndex).GetResults());
                 }
                 try {
                     System.out.println("\n Sleping for one minute\n");
-                    Thread.sleep(60000);
+                    Thread.sleep(Parameter.m_nSleepTime);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
-            String sProtocol;
-            if (m_nProtocol == 0) sProtocol = "TCP";
-            else if (m_nProtocol == 1) sProtocol = "UDP";
-            else sProtocol = "MQTT";
-            WriteResultstoFile(sProtocol + " OverEth" + new DecimalFormat("#####").format( BenchNetworkTime.GetCurrentTime()) , aResults);
         }
     }
 
-    public void WriteResultstoFile( String sFilname,  List<List<String>> aResults)
-    {
-        FileWriter csvWriter = null;
+    private static String createDataSize(float nMegabyte) {
+        int msgSize = Math.round(nMegabyte * 524288F);
+        StringBuilder sb = new StringBuilder(msgSize);
+        Random rnd = new Random();
+
+        for (int i=0; i<msgSize; i = i + 4) {
+            // sb.append((char) (rnd.nextInt(26) + 'a'));
+            sb.append('H');
+            sb.append('e');
+            sb.append('y');
+            sb.append('x');
+        }
+        return sb.toString();
+    }
+
+    public static void CreateFile(String sFilename){
         try {
-            csvWriter = new FileWriter(sFilname + ".csv");
+            FileWriter csvWriter = new FileWriter(sFilename + ".csv");
             csvWriter.append("Protocol");
             csvWriter.append(":");
             csvWriter.append("Filesize");
@@ -206,12 +224,22 @@ class BenchNetworkThreadPool
             csvWriter.append(":");
             csvWriter.append("Total Usage");
             csvWriter.append("\n");
+            csvWriter.flush();
+            csvWriter.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
+    }
+
+    public static void WriteResultstoFile( String sFilename,  List<List<String>> aResults)
+    {
+        try {
+            FileWriter csvWriter = new FileWriter(sFilename + ".csv", true);
             for (List<String> rowData : aResults) {
                 csvWriter.append(String.join(":", rowData));
                 csvWriter.append("\n");
             }
-
             csvWriter.flush();
             csvWriter.close();
         } catch (IOException e) {
@@ -222,19 +250,20 @@ class BenchNetworkThreadPool
 }
 
 
-class BenchNetwork implements Runnable
-{
+class BenchNetwork implements Runnable{
     protected  BaseClient m_oClient;
     protected  String m_sThreadCount;
     protected  String m_sThreadIndex;
     protected  boolean m_bIsRunning = true;
     protected   Semaphore m_oSemaphore;
-    BenchNetwork(BaseClient oClient, String sThreadCount, String sThreadIndex,  Semaphore semaphore)
+    Map<Float, String> m_aDataset;
+    BenchNetwork(BaseClient oClient, String sThreadCount, String sThreadIndex,  Semaphore semaphore, Map<Float, String> aDataset )
     {
         m_oClient = oClient;
         m_sThreadCount = sThreadCount;
         m_sThreadIndex = sThreadIndex;
         m_oSemaphore = semaphore;
+        m_aDataset = aDataset;
     }
     public boolean IsRunnign()
     {
@@ -251,18 +280,17 @@ class BenchNetwork implements Runnable
     }
 
     protected void BeginBenchmark(BaseClient oCLient) throws IOException {
-            for(float nFileSize = 0.01F; nFileSize < 1F; nFileSize = nFileSize * 2F)
+        for (Map.Entry<Float, String> entry : m_aDataset.entrySet())
             {
-                for(short nIterations = 1; nIterations < 5; nIterations = (short) (nIterations * 2))
+                for(short nIterations = 1; nIterations <= Parameter.m_nIterationCount; nIterations = (short) (nIterations * 2))
                 {
-                    OneBench(nFileSize, nIterations, oCLient);
+                    OneBench(entry.getKey(), entry.getValue(), nIterations, oCLient);
                 }
             }
     }
 
-    private void OneBench(float nFileSize, short nIteration, BaseClient oCLient) throws IOException {
+    private void OneBench(float nFileSize, String sData, short nIteration, BaseClient oCLient) throws IOException {
         BenchNetworkTime oTime = new BenchNetworkTime(oCLient, m_oSemaphore);
-        String sData = createDataSize(nFileSize);
         oTime.Begin();
         oCLient.CreateConnection();
         for(int nCount = 0; nCount < nIteration; nCount++) {
@@ -283,22 +311,6 @@ class BenchNetwork implements Runnable
 
         CachingResults(oCLient.GetProtocolName(), new DecimalFormat("###.##").format( nFileSize), String.valueOf(nIteration), oTime);
 
-    }
-
-
-    private static String createDataSize(float nMegabyte) {
-        int msgSize = Math.round(nMegabyte * 524288F);
-        StringBuilder sb = new StringBuilder(msgSize);
-        Random rnd = new Random();
-
-        for (int i=0; i<msgSize; i = i + 4) {
-           // sb.append((char) (rnd.nextInt(26) + 'a'));
-            sb.append('H');
-            sb.append('e');
-            sb.append('y');
-            sb.append('x');
-        }
-        return sb.toString();
     }
 
     List<List<String>> m_aResults = new ArrayList<>();

@@ -1,12 +1,16 @@
 package RoC.NetworkProtocolsBench;
 
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.text.DecimalFormat;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 
 
 public interface BaseServer {
@@ -90,15 +94,21 @@ public interface BaseServer {
          for(int nIndex = 0; nIndex < 10; nIndex++)
          {
              this.threadPool.execute(new WorkerRunnable(0,nTCPPort + nIndex));
-             this.threadPool.execute(new WorkerRunnable(1,6310 + nIndex));
+             this.threadPool.execute(new WorkerRunnable(1,nUDPPort + nIndex));
          }
         //Open MQTT Broker
          this.threadPool.execute(new WorkerRunnable(2,1883));
 
-
-        while(! isStopped()){
+         Semaphore oSemaphore = new Semaphore(1);
+         final String sFilename = "ResultsServer" + (BenchNetworkTime.GetCurrentTime()/1000);
+         CreateFile(sFilename);
+         while(! isStopped()){
             try {
-                Thread.sleep(1000);
+                PerformanceMonitor oPerformance = new PerformanceMonitor(oSemaphore);
+                oPerformance.Next();
+                Thread.sleep(60000);
+                oPerformance.Next();
+                WriteResultstoFile(sFilename, oPerformance.GetNetworkInfo(), oPerformance.GetTotalUsage());
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -108,8 +118,50 @@ public interface BaseServer {
         System.out.println("Server Stopped.") ;
     }
 
+     private static void CreateFile(String sFilename){
+         try {
+             FileWriter csvWriter = new FileWriter(sFilename + ".csv");
+             csvWriter.append("TimeStamp");
+             csvWriter.append(":");
+             csvWriter.append("Interface Name");
+             csvWriter.append(":");
+             csvWriter.append("Recived Bytes");
+             csvWriter.append(":");
+             csvWriter.append("Total Load");
+             csvWriter.append("\n");
+             csvWriter.flush();
+             csvWriter.close();
+         } catch (IOException e) {
+             e.printStackTrace();
+         }
 
-    private synchronized boolean isStopped() {
+     }
+
+     private static void WriteResultstoFile(String sFilename, HashMap<String, Long> aNet, double nLoad)
+     {
+         try {
+             FileWriter csvWriter = new FileWriter(sFilename + ".csv", true);
+             Iterator it = aNet.entrySet().iterator();
+             while (it.hasNext()) {
+                 Map.Entry pair = (Map.Entry)it.next();
+                 List<String> rowData = new ArrayList<String>();
+                 rowData.add(new DecimalFormat("######.##").format((float)BenchNetworkTime.GetCurrentTime()/ 1000F));
+                 rowData.add(pair.getKey().toString());
+                 rowData.add(pair.getValue().toString());
+                 rowData.add( new DecimalFormat("##.##").format(nLoad * 100D));
+                 csvWriter.append(String.join(":", rowData));
+                 csvWriter.append("\n");
+             }
+
+             csvWriter.flush();
+             csvWriter.close();
+         } catch (IOException e) {
+             e.printStackTrace();
+         }
+
+     }
+
+     private synchronized boolean isStopped() {
         return this.isStopped;
     }
 

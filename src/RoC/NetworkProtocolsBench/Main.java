@@ -5,12 +5,19 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import com.sun.management.OperatingSystemMXBean;
 
+class Parameter{
+    static short m_nThreadCountMin = 2;
+    static short m_nThreadCountMax = 2;
+    static short m_nIterationCount = 1;
+    static float m_nFileSizeMin = 0.01F;
+    static float m_nFileSizeMax = 2F;
+    static int m_nSleepTime = 600;
+}
 
 public class Main {
 
-    private static boolean m_bUseClient = true; //true: this jar is client side/ false: this jar is Server side
-    private static short m_nProtocol = 0; // 0 = TCP / 1 = UDP / 2 = MQTT / 3 = Zigbee ...
-    private static String m_sIP = "192.168.178.45";
+    private static boolean m_bUseClient = false; //true: this jar is client side/ false: this jar is Server side
+    private static String m_sIP = "192.168.178.58";
 
 
     public static void main(String[] args) {
