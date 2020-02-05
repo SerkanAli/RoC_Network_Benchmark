@@ -1,5 +1,6 @@
 package RoC.NetworkProtocolsBench;
 
+import javax.swing.*;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,10 +18,11 @@ public interface BaseServer {
 
     void SetPort(int nPort);
 
-    void ListentoPort() throws IOException;
+    void ListentoPort(WorkerRunnable.LatencyWriter oWriter) ;
 
     boolean NeedLoop ();
-    void ShutDownServer();
+
+
 }
 
 
@@ -37,6 +39,7 @@ public interface BaseServer {
      @Override
     public void run() {
         boolean bNeedLoop;
+         LatencyWriter oWriter = new LatencyWriter("TCPandUDPServerTimes"+ String.valueOf(BenchNetworkTime.GetCurrentTime()));
         do {
             BaseServer oServer;
             if(m_nProtocol == 0)
@@ -48,24 +51,66 @@ public interface BaseServer {
             {
                 oServer = new UDPServer();
             }
-            else if(m_nProtocol == 2)
+            else
             {
                 oServer = new MQTTServer();
             }
-            else
-            {
-                oServer = new ZigbeeServer();
-            }
+
             oServer.SetPort(m_nPort);
+
+            oServer.ListentoPort(oWriter);
+
+            System.out.println("Peace and out");
+            bNeedLoop = oServer.NeedLoop();
+
+            oServer = null;
+        }while(bNeedLoop);
+    }
+    static class LatencyWriter {
+
+
+       String m_sFileName;
+       LatencyWriter(String sFilename)
+       {
+           m_sFileName = sFilename;
+           try {
+               FileWriter csvWriter = new FileWriter(sFilename + ".csv");
+               csvWriter.append("Protocol");
+               csvWriter.append(":");
+               csvWriter.append("Bench ID");
+               csvWriter.append(":");
+               csvWriter.append("Time");
+               csvWriter.append(":");
+               csvWriter.append("Latency");
+               csvWriter.append("\n");
+               csvWriter.flush();
+               csvWriter.close();
+           } catch (IOException e) {
+               e.printStackTrace();
+           }
+       }
+
+
+        public  void WriteResultstoFile(String Prtocol, long m_nBenchID,long m_nTime, long m_nLatency) {
             try {
-                oServer.ListentoPort();
+                FileWriter csvWriter = new FileWriter(m_sFileName + ".csv", true);
+
+                List<String> rowData = new ArrayList<String>();
+                rowData.add(Prtocol);
+                rowData.add(String.valueOf(m_nBenchID));
+                rowData.add(String.valueOf(m_nTime));
+                rowData.add(String.valueOf(m_nLatency));
+                csvWriter.append(String.join(":", rowData));
+                csvWriter.append("\n");
+
+
+                csvWriter.flush();
+                csvWriter.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            System.out.println("Peace and out");
-            bNeedLoop = oServer.NeedLoop();
-            oServer = null;
-        }while(bNeedLoop);
+
+        }
     }
 }
 

@@ -10,6 +10,7 @@ public class MQTTServer implements BaseServer, MqttCallback {
     MqttClient m_oClient;
     int m_nPort;
     String m_sTopic = "test/topic";
+    WorkerRunnable.LatencyWriter m_oWriter;
 
 
     @Override
@@ -18,17 +19,17 @@ public class MQTTServer implements BaseServer, MqttCallback {
     }
 
     @Override
-    public void ListentoPort() throws IOException {
+    public void ListentoPort(WorkerRunnable.LatencyWriter oWriter) {
 
         try {
-           m_oClient = new MqttClient("tcp://192.168.178.58:1883", "Sending");
+            m_oClient = new MqttClient("tcp://192.168.178.45:1883", "Sending");
             m_oClient.connect();
             m_oClient.setCallback(this);
             m_oClient.subscribe(m_sTopic);
 
             System.out.println("Listening to Port MQTT ...");
 
-
+            m_oWriter = new WorkerRunnable.LatencyWriter("MQTT"+ String.valueOf(BenchNetworkTime.GetCurrentTime()));
         } catch (MqttException e) {
             e.printStackTrace();
         }
@@ -40,10 +41,7 @@ public class MQTTServer implements BaseServer, MqttCallback {
         return false;
     }
 
-    @Override
-    public void ShutDownServer() {
 
-    }
 
 
 
@@ -55,11 +53,24 @@ public class MQTTServer implements BaseServer, MqttCallback {
 
     @Override
     public void messageArrived(String topic, MqttMessage message) throws Exception {
-        System.out.println("message is : "+message.toString().substring(0,4));
+        long nBeginTime = 0;
+        long nBenchID = 0;
+        long nLatency = BenchNetworkTime.GetCurrentTime() - nBeginTime;
+        for(int i = 0; i < 8; i++)
+        {
+            nBeginTime <<= 8;
+            nBenchID <<= 8;
+            nBeginTime |= (message.getPayload()[i] &0xFF);
+            nBenchID |= (message.getPayload()[i+8] &0xFF);
+        }
+        //bFirstMsg = false;
+        System.out.println("##########################");
+        System.out.println("ID : "+nBenchID);
+        m_oWriter.WriteResultstoFile("MQTT",nBenchID,  (BenchNetworkTime.GetCurrentTime() - nBeginTime), nLatency);
     }
 
     @Override
     public void deliveryComplete(IMqttDeliveryToken token) {
-
+        System.out.println("+++++++Delivery Complete:++++++++++");
     }
 }
