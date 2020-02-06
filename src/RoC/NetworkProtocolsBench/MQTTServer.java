@@ -22,7 +22,7 @@ public class MQTTServer implements BaseServer, MqttCallback {
     public void ListentoPort(WorkerRunnable.LatencyWriter oWriter) {
 
         try {
-            m_oClient = new MqttClient("tcp://192.168.178.45:1883", "Sending");
+            m_oClient = new MqttClient("tcp://192.168.178.60:1883", "Sending");
             m_oClient.connect();
             m_oClient.setCallback(this);
             m_oClient.subscribe(m_sTopic);

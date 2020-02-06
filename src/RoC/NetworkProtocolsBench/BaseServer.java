@@ -134,9 +134,9 @@ public interface BaseServer {
             this.runningThread = Thread.currentThread();
         }
             //Open Servers for TCP and UDP
-         final int nTCPPort = 6300;
+         final int nTCPPort = 6290;
          final int nUDPPort = 6310;
-         for(int nIndex = 0; nIndex < 10; nIndex++)
+         for(int nIndex = 0; nIndex < 20; nIndex++)
          {
              this.threadPool.execute(new WorkerRunnable(0,nTCPPort + nIndex));
              this.threadPool.execute(new WorkerRunnable(1,nUDPPort + nIndex));

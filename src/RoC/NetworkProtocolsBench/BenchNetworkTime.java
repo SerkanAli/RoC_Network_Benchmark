@@ -5,11 +5,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 import java.text.DecimalFormat;
+import java.time.LocalTime;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import static java.lang.management.ManagementFactory.getPlatformMXBean;
 
@@ -87,7 +85,7 @@ public class BenchNetworkTime {
 
     public double GetTroughput()
     {
-        return m_nThroughput /1000;
+        return m_nThroughput /1000D;
     }
 
 
@@ -110,6 +108,31 @@ public class BenchNetworkTime {
     public double GetAvgCoreUsage() {return m_nAvgCoreUsage *100D ;}
 }
 
+class BenchDataSet{
+    public Map<Float, byte[]> data = new TreeMap<Float, byte[]>();
+
+    BenchDataSet(){
+        byte nID = 1;
+        for(float nSize = Parameter.m_nFileSizeMin; nSize < Parameter.m_nFileSizeMax; nSize = nSize * 2) {
+            data.put(nSize, createDataSize(nSize, nID));
+            nID++;
+        }
+    }
+    private static byte[] createDataSize(float nMegabyte, byte nID) {
+        int msgSize = Math.round(nMegabyte * 1048576F);
+        byte[] aData = new byte[msgSize];
+        aData[0] = nID;
+        for (int i=1; i+4<msgSize; i = i + 4) {
+            // sb.append((char) (rnd.nextInt(26) + 'a'));
+            aData[i] = (byte)'H';
+            aData[i+1] = (byte)'e';
+            aData[i+2] = (byte)'y';
+            aData[i+3] = (byte)'!';
+        }
+        return aData;
+    }
+}
+
 class BenchNetworkThreadPool
 {
     protected ExecutorService threadPool = Executors.newFixedThreadPool(4);
@@ -121,12 +144,11 @@ class BenchNetworkThreadPool
 
     }
 
+    protected  BenchDataSet m_aDataSet;
     public void BeginBench()
     {
         //Create once same Dataset for all Thread, so Memory heap is avoided
-        Map<Float, String> aDataset = new TreeMap<Float, String>();
-        for(float nSize = Parameter.m_nFileSizeMin; nSize < Parameter.m_nFileSizeMax; nSize = nSize * 2)
-            aDataset.put(nSize,createDataSize(nSize));
+        m_aDataSet = new BenchDataSet();
 
         //Loop to go through all Protocols
         for(int m_nProtocol = 0; m_nProtocol <= 2;m_nProtocol++) {
@@ -139,66 +161,92 @@ class BenchNetworkThreadPool
             CreateFile(sFileName);
 
             //Test different counts of threads
-            for (int nThreadCount = Parameter.m_nThreadCountMin; nThreadCount <= Parameter.m_nThreadCountMax; nThreadCount = nThreadCount * 2) {
-                Semaphore semaphore = new Semaphore(1);
-                List<BenchNetwork> aClientList = new ArrayList<>();
-                int nPort = 0;
-                if (m_nProtocol == 0)
-                    nPort = 6300;
-                else
-                    nPort = 6310;
+            Semaphore semaphoreLoad = new Semaphore(1);
+            for (byte nThreadCount = Parameter.m_nThreadCountMin; nThreadCount <= Parameter.m_nThreadCountMax; nThreadCount = (byte) (nThreadCount + Parameter.m_nThreadIncrease)) {
+                for(Float nSize = Parameter.m_nFileSizeMin; nSize < Parameter.m_nFileSizeMax; nSize = nSize * 2) {
+                    for(short nIterations = 1; nIterations <= Parameter.m_nIterationCount; nIterations = (short) (nIterations * 2)) {
+                       // Create Clients and Threads
+                        List<BenchNetwork> aClientList = new ArrayList<>();
+                        int nPort = 0;
+                        if (m_nProtocol == 0)
+                            nPort = 6290;
+                        else
+                            nPort = 6310;
 
-                for (int nCount = 0; nCount < nThreadCount; nCount++) {
-                    BaseClient oClient;
-                    if (m_nProtocol == 0 /*is TCP*/) {
-                        oClient = new TCPClient();
-                    } else if (m_nProtocol == 1 /*is UDP*/) {
-                        oClient = new UDPClient();
-                    } else if (m_nProtocol == 2) {
-                        oClient = new MQTTClient();
-                    } else
-                        oClient = new UDPClient();
+                        for (int nCount = 0; nCount < nThreadCount; nCount++) {
+                            BaseClient oClient;
+                            if (m_nProtocol == 0 /*is TCP*/) {
+                                oClient = new TCPClient();
+                            } else if (m_nProtocol == 1 /*is UDP*/) {
+                                oClient = new UDPClient();
+                            } else {
+                                oClient = new MQTTClient();
+                            }
 
-                    oClient.SetPort(nPort + nCount);
-                    oClient.SetIPAdress(m_sIPAdress); //wlan
-                    BenchNetwork oClientBench = new BenchNetwork(oClient, String.valueOf(nThreadCount), String.valueOf(nCount), semaphore, aDataset);
-                    this.threadPool.execute(oClientBench);
-                    aClientList.add(oClientBench);
-                }
+                            oClient.SetPort(nPort + nCount);
+                            oClient.SetIPAdress(m_sIPAdress); //wlan
+                            BenchNetwork oClientBench = new BenchNetwork(oClient, String.valueOf(nThreadCount), String.valueOf(nCount), semaphoreLoad, m_aDataSet, nSize, nIterations);
+                            aClientList.add(oClientBench);
+                        }
 
-                for (int nIndex = 0; nIndex < aClientList.size(); nIndex++) {
-                    while (aClientList.get(nIndex).IsRunnign()) {
+                        //Execute Threads
+                        //for(int nIndex = 0 ; nIndex < aClientList.size(); nIndex++)
+                           // this.threadPool.execute(aClientList.get(nIndex));
+
                         try {
-                            Thread.sleep(1000);
+                            List<Future<List<List<String>>>> futures = threadPool.invokeAll(aClientList);
+
+                        int nMaxTry = 1200;
+                        for (int nIndex = 0; nIndex < futures.size(); nIndex++) {
+                            int nTry = 0;
+                           /* while (aClientList.get(nIndex).IsRunnign()) {
+                                try {
+                                    Thread.sleep(1000);
+                                    if (nTry >= nMaxTry) {
+                                        nMaxTry = Math.round(nMaxTry / 2);
+                                        break;
+                                    }
+                                    nTry++;
+                                    System.out.println("Waiting Thread:" + nIndex + " Tick:" + nTry);
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                            }*/
+                            //WriteResultstoFile(sFileName, aClientList.get(nIndex).GetResults());
+                            try {
+                                WriteResultstoFile(sFileName, futures.get(nIndex).get());
+                            } catch (ExecutionException e) {
+                                List<List<String>> aRes = new ArrayList<>();
+                                List<String> oRow = new ArrayList<String>(); ;
+                                oRow.add(String.valueOf(m_nProtocol));
+                                oRow.add(String.valueOf(nSize));
+                                oRow.add(String.valueOf(nThreadCount));
+                                oRow.add(String.valueOf(nIndex));
+                                oRow.add(String.valueOf(nIterations));
+                                oRow.add("-1");
+                                oRow.add("-1");
+                                oRow.add("-1");
+                                oRow.add("-1");
+                                oRow.add("-1");
+                                oRow.add("-1");
+                                aRes.add(oRow);
+                               WriteResultstoFile(sFileName,aRes);
+                            }
+                        }
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+
+                        try {
+                            System.out.println("\n Sleping for while\n");
+                            Thread.sleep(Parameter.m_nSleepTime);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
                     }
-                    WriteResultstoFile(sFileName, aClientList.get(nIndex).GetResults());
-                }
-                try {
-                    System.out.println("\n Sleping for one minute\n");
-                    Thread.sleep(Parameter.m_nSleepTime);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
                 }
             }
         }
-    }
-
-    private static String createDataSize(float nMegabyte) {
-        int msgSize = Math.round(nMegabyte * 524288F);
-        StringBuilder sb = new StringBuilder(msgSize);
-        Random rnd = new Random();
-
-        for (int i=0; i<msgSize; i = i + 4) {
-            // sb.append((char) (rnd.nextInt(26) + 'a'));
-            sb.append('H');
-            sb.append('e');
-            sb.append('y');
-            sb.append('x');
-        }
-        return sb.toString();
     }
 
     public static void CreateFile(String sFilename){
@@ -223,6 +271,8 @@ class BenchNetworkThreadPool
             csvWriter.append("Avg Core Load");
             csvWriter.append(":");
             csvWriter.append("Total Usage");
+            csvWriter.append(":");
+            csvWriter.append("Bench ID");
             csvWriter.append("\n");
             csvWriter.flush();
             csvWriter.close();
@@ -250,58 +300,57 @@ class BenchNetworkThreadPool
 }
 
 
-class BenchNetwork implements Runnable{
+class BenchNetwork implements Callable<List<List<String>>> {
     protected  BaseClient m_oClient;
     protected  String m_sThreadCount;
     protected  String m_sThreadIndex;
     protected  boolean m_bIsRunning = true;
-    protected   Semaphore m_oSemaphore;
-    Map<Float, String> m_aDataset;
-    BenchNetwork(BaseClient oClient, String sThreadCount, String sThreadIndex,  Semaphore semaphore, Map<Float, String> aDataset )
+    protected   Semaphore m_oSemaphoreLoad;
+    protected BenchDataSet m_aDataSet;
+    protected float m_nFileSize;
+    protected short m_nIteration;
+    BenchNetwork(BaseClient oClient, String sThreadCount, String sThreadIndex,  Semaphore semaphoreLoad , BenchDataSet oData, float nSize, short nIter)
     {
         m_oClient = oClient;
         m_sThreadCount = sThreadCount;
         m_sThreadIndex = sThreadIndex;
-        m_oSemaphore = semaphore;
-        m_aDataset = aDataset;
+        m_oSemaphoreLoad = semaphoreLoad;
+        m_aDataSet = oData;
+        m_nFileSize = nSize;
+        m_nIteration = nIter;
     }
     public boolean IsRunnign()
     {
         return m_bIsRunning;
     }
-    @Override
+    //@Override
     public void run() {
         try {
-            BeginBenchmark(m_oClient);
+            OneBench(m_oClient);
         } catch (IOException e) {
             e.printStackTrace();
         }
         m_bIsRunning = false;
     }
 
-    protected void BeginBenchmark(BaseClient oCLient) throws IOException {
-        for (Map.Entry<Float, String> entry : m_aDataset.entrySet())
-            {
-                for(short nIterations = 1; nIterations <= Parameter.m_nIterationCount; nIterations = (short) (nIterations * 2))
-                {
-                    OneBench(entry.getKey(), entry.getValue(), nIterations, oCLient);
-                }
-            }
-    }
 
-    private void OneBench(float nFileSize, String sData, short nIteration, BaseClient oCLient) throws IOException {
-        BenchNetworkTime oTime = new BenchNetworkTime(oCLient, m_oSemaphore);
+
+    private void OneBench(BaseClient oCLient) throws IOException {
+        Random rnd = new Random();
+        long nBenchID = rnd.nextLong();
+        System.out.println("Bench ID:" + nBenchID);
+        BenchNetworkTime oTime = new BenchNetworkTime(oCLient, m_oSemaphoreLoad);
         oTime.Begin();
         oCLient.CreateConnection();
-        for(int nCount = 0; nCount < nIteration; nCount++) {
+        for(int nCount = 0; nCount < m_nIteration; nCount++) {
             oTime.Next_BeforeSend();
-            oCLient.SendStringOverConnection(sData);
+            oCLient.SendStringOverConnection(m_nFileSize, m_aDataSet, nBenchID);
             oTime.Next_AfterSend();
         }
         oCLient.CloseConnection();
-        oTime.End(nFileSize * nIteration * 1048576);
+        oTime.End(m_nFileSize * m_nIteration * 1048576);
 
-        System.out.println("Result of "+ nFileSize +" Mybte transfer at "+ nIteration+" itarations in Thread "+ m_sThreadIndex + "/"+ m_sThreadCount +" is:");
+        System.out.println("Result of "+ oCLient.GetProtocolName()+" "+ m_nFileSize +" Mybte transfer at "+ m_nIteration+" itarations in Thread "+ m_sThreadIndex + "/"+ m_sThreadCount +" is:");
         System.out.println("Total time: " + new DecimalFormat("###.##").format( oTime.GetTotalTime()) + " sec");
         System.out.println("Throughput: " +new DecimalFormat("###.####").format( oTime.GetTroughput()) + " Mbyte per Sec");
         System.out.println("Thread Load: " + new DecimalFormat("##.##").format(oTime.GetThreadLoad()) + " %");
@@ -309,13 +358,13 @@ class BenchNetwork implements Runnable{
         System.out.println("Total Usage: " + new DecimalFormat("##.##").format(oTime.GetTotalUsage()) + " %");
         System.out.println("");
 
-        CachingResults(oCLient.GetProtocolName(), new DecimalFormat("###.##").format( nFileSize), String.valueOf(nIteration), oTime);
+        CachingResults(oCLient.GetProtocolName(), new DecimalFormat("###.##").format( m_nFileSize), String.valueOf(m_nIteration), oTime, nBenchID);
 
     }
 
     List<List<String>> m_aResults = new ArrayList<>();
 
-    private void CachingResults(String sProtocol, String sFileSize, String sIteration, BenchNetworkTime oTime)
+    private void CachingResults(String sProtocol, String sFileSize, String sIteration, BenchNetworkTime oTime, long nBenchID)
     {
         List<String> oRow = new ArrayList<String>(); ;
         oRow.add(sProtocol);
@@ -328,6 +377,7 @@ class BenchNetwork implements Runnable{
         oRow.add(new DecimalFormat("###.##").format(oTime.GetThreadLoad()));
         oRow.add(new DecimalFormat("###.##").format(oTime.GetAvgCoreUsage()));
         oRow.add(new DecimalFormat("###.##").format(oTime.GetTotalUsage()));
+        oRow.add(String.valueOf(nBenchID));
         m_aResults.add(oRow);
     }
 
@@ -337,4 +387,9 @@ class BenchNetwork implements Runnable{
     }
 
 
+    @Override
+    public List<List<String>> call() throws Exception {
+        run();
+        return m_aResults;
+    }
 }

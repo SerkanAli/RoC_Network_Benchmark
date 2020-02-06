@@ -3,6 +3,8 @@ package RoC.NetworkProtocolsBench;
 
 import java.io.IOException;
 import java.net.*;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 public class UDPClient implements BaseClient
@@ -53,20 +55,27 @@ public class UDPClient implements BaseClient
     final int nChunkSize = 65500;
 
     @Override
-    public void SendStringOverConnection(String sData) throws IOException {
+    public boolean SendStringOverConnection(Float nFileSize, BenchDataSet oData, long nBenchID) throws IOException {
         if(!m_bIsConnected)
-            return;
-        byte aData[] = null;
-        String inp = sData;
-        aData = inp.getBytes();
-        int nCount = (aData.length / nChunkSize) +1;
+            return false;
+        int nCount = (oData.data.get(nFileSize).length / nChunkSize) +1;
+        byte[] bTime = ByteBuffer.allocate(Long.BYTES).putLong(BenchNetworkTime.GetCurrentTime()).array();
+        byte[] bID = ByteBuffer.allocate(Long.BYTES).putLong(nBenchID).array();
+        byte[] bLenght = ByteBuffer.allocate(Long.BYTES).putLong(nCount).array();
+        for(int nIndex = 0; nIndex < 8; nIndex++) {
+            oData.data.get(nFileSize)[nIndex] = bTime[nIndex];
+            oData.data.get(nFileSize)[nIndex + 8] = bID[nIndex];
+            oData.data.get(nFileSize)[nIndex + 16] = bLenght[nIndex];
+        }
+
         for(int nIndex = 0; nIndex < nCount; nIndex++)
         {
             int nBegin = nIndex * nChunkSize;
-            byte buf[] = Arrays.copyOfRange(aData, nBegin, nBegin+nChunkSize);
+            byte buf[] = Arrays.copyOfRange(oData.data.get(nFileSize), nBegin, nBegin+nChunkSize);
             DatagramPacket DpSend = new DatagramPacket(buf, buf.length, m_oIP, m_nPort);
             m_odataSocket.send(DpSend);
         }
+        return true;
     }
 
     @Override

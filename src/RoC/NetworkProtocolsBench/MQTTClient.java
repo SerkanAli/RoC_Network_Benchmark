@@ -3,6 +3,7 @@ package RoC.NetworkProtocolsBench;
 import org.eclipse.paho.client.mqttv3.*;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 public class MQTTClient implements BaseClient{
     String m_sBroker = "tcp://localhost:1883";
@@ -61,15 +62,24 @@ public class MQTTClient implements BaseClient{
     }
 
     @Override
-    public void SendStringOverConnection(String sData) throws IOException {
+    public boolean SendStringOverConnection(Float nFileSize, BenchDataSet oData, long nBenchID) throws IOException {
         if(!m_bIsConnected)
-            return;
-        MqttMessage message = new MqttMessage(sData.getBytes());
+            return false;
+        byte[] bTime = ByteBuffer.allocate(Long.BYTES).putLong(BenchNetworkTime.GetCurrentTime()).array();
+        byte[] bID = ByteBuffer.allocate(Long.BYTES).putLong(nBenchID).array();
+        for(int nIndex = 0; nIndex < 8; nIndex++) {
+            oData.data.get(nFileSize)[nIndex] = bTime[nIndex];
+            oData.data.get(nFileSize)[nIndex + 8] = bID[nIndex];
+        }
+        MqttMessage message = new MqttMessage();
+        message.setPayload(oData.data.get(nFileSize));
         try {
             m_oMqttClient.publish(m_sTopicName,message);
         } catch (MqttException e) {
             e.printStackTrace();
+            return false;
         }
+        return true;
     }
 
     @Override

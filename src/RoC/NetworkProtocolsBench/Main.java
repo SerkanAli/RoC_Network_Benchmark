@@ -6,19 +6,21 @@ import java.lang.management.ManagementFactory;
 import com.sun.management.OperatingSystemMXBean;
 
 class Parameter{
-    static short m_nThreadCountMin = 2;
-    static short m_nThreadCountMax = 2;
-    static short m_nIterationCount = 1;
+    static byte m_nThreadCountMin = 1;
+    static byte m_nThreadCountMax = 16;
+    static byte m_nThreadIncrease = 2;
+    static byte m_nIterationCount = 16;
     static float m_nFileSizeMin = 0.01F;
-    static float m_nFileSizeMax = 2F;
-    static int m_nSleepTime = 600;
+    static float m_nFileSizeMax =45F;
+    static int m_nSleepTime = 60000;
 }
 
 public class Main {
 
-    private static boolean m_bUseClient = false; //true: this jar is client side/ false: this jar is Server side
-    private static String m_sIP = "192.168.178.58";
-
+    private static boolean m_bUseClient = true; //true: this jar is client side/ false: this jar is Server side
+    //private static String m_sIP = "169.254.41.185";
+   private static String m_sIP = "192.168.178.60";
+   //private static String m_sIP = "192.168.178.45";
 
     public static void main(String[] args) {
         BenchNetworkTime.GetCurrentTime();

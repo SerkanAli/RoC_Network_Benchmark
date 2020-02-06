@@ -12,7 +12,7 @@ public interface BaseClient {
      void SendStringCreateNewConnection(String sData) throws IOException;
 
      void CreateConnection();
-     void SendStringOverConnection(String sData) throws IOException;
+     boolean SendStringOverConnection(Float nFileSize, BenchDataSet oData, long nBenchID) throws IOException;
      void CloseConnection();
 
      String GetProtocolName();

@@ -1,9 +1,12 @@
 package RoC.NetworkProtocolsBench;
 
+import javafx.scene.effect.InnerShadow;
+
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.ByteBuffer;
 
 public class TCPClient implements BaseClient {
     private int m_nPort =0;
@@ -48,16 +51,28 @@ public class TCPClient implements BaseClient {
     }
 
     @Override
-    public void SendStringOverConnection(String sData) throws IOException {
+    public boolean SendStringOverConnection(Float nFileSize, BenchDataSet oData, long nBenchID) throws IOException {
 
         if(!m_bIsConnected)
-            return;
+            return false;
         try {
-            m_oOutToServer.writeBytes(sData + '\n');
-        }catch( SocketException e){
 
+            byte[] bTime = ByteBuffer.allocate(Long.BYTES).putLong(BenchNetworkTime.GetCurrentTime()).array();
+            byte[] bID = ByteBuffer.allocate(Long.BYTES).putLong(nBenchID).array();
+            for(int nIndex = 0; nIndex < 8; nIndex++) {
+                oData.data.get(nFileSize)[nIndex] = bTime[nIndex];
+                oData.data.get(nFileSize)[nIndex + 8] = bID[nIndex];
+            }
+
+            oData.data.get(nFileSize)[oData.data.get(nFileSize).length-1] = (byte)'\n';
+            m_oOutToServer.writeInt(oData.data.get(nFileSize).length);
+            m_oOutToServer.write(oData.data.get(nFileSize));
+            //m_oOutToServer.writeBytes(String.valueOf(BenchNetworkTime.GetCurrentTime())+String.valueOf(nBenchID)  + oData.data.get(nFileSize));
+           // m_oOutToServer.write(oData.data.get(nFileSize));
+        }catch( SocketException e){
+            return false;
         }
-        return;
+        return true;
     }
 
     @Override

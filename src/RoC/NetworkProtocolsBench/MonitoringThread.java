@@ -227,7 +227,13 @@ class PerformanceMonitor {
 
 
     private double getCoreLoad() {
-    return p.calculateCpuPercent() / 4D;
+
+        double oldUpTime = uptime;
+        double oldcpuTime = cpuTime;
+
+        uptime = p.getUpTime();
+        cpuTime = p.getKernelTime() + p.getUserTime();
+        return (cpuTime-oldcpuTime) / (uptime - oldUpTime);
     }
 
 
@@ -236,11 +242,10 @@ class PerformanceMonitor {
         double[] dLoad = cP.getProcessorCpuLoadBetweenTicks(oldTotalTicks);
         oldTotalTicks = cP.getProcessorCpuLoadTicks();
         double sum = 0;
-        int divider = dLoad.length;
         for (int i = 0; i < dLoad.length; i++) {
             sum += dLoad[i];
         }
-        return sum / divider;
+        return sum / dLoad.length;
     }
 
     private void updateNetwork() {
