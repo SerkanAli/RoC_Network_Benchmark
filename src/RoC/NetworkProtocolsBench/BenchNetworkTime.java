@@ -30,9 +30,8 @@ public class BenchNetworkTime {
     MonitoringThread m_oMonitor;
     PerformanceMonitor m_oPerformance;
 
-    public BenchNetworkTime(BaseClient oClient,  Semaphore semaphore)
+    public BenchNetworkTime(Semaphore semaphore)
     {
-        m_oClient = oClient;
         m_oSemaphore = semaphore;
     }
 
@@ -43,16 +42,16 @@ public class BenchNetworkTime {
 
     public void Begin()
     {
-        /*
-         *
-         *   CPU usage
-         *
-         * */
+        m_nStartProcessTime = GetCurrentTime();
         m_oMonitor = new MonitoringThread();
         m_oPerformance = new PerformanceMonitor(m_oSemaphore);
         m_oPerformance.Next();
-        m_nStartProcessTime = GetCurrentTime();
         m_nThroughput = 0;
+    }
+
+    public long CreatedConnection()
+    {
+        return GetCurrentTime() - m_nStartProcessTime;
     }
 
     public void Next_BeforeSend()
@@ -61,20 +60,17 @@ public class BenchNetworkTime {
         m_oPerformance.Next();
     }
 
-    public void Next_AfterSend()
+    public void Next_AfterSend(boolean bHasSend)
     {
-        m_nThroughput = m_nThroughput + GetCurrentTime() - m_nStartSendDataTime;
+        if(bHasSend)
+            m_nThroughput = m_nThroughput + GetCurrentTime() - m_nStartSendDataTime;
         m_oPerformance.Next();
     }
 
     public void End(float nFileSize)
     {
         m_oPerformance.Next();
-        long nEndTime = GetCurrentTime();
-        long nServerBeginTime = m_oClient.GetServerBeginTime();
-        m_nLatency = nServerBeginTime - m_nStartSendDataTime;
-        if(m_nLatency < 0)
-            m_nLatency = 0;
+        m_nLatency = 0;
         m_oMonitor.stopMonitor();
         m_nTotalUsage = m_oPerformance.GetTotalUsage();
         m_nAvgCoreUsage = m_oPerformance.GetAverageCoreLoad();
@@ -123,7 +119,6 @@ class BenchDataSet{
         byte[] aData = new byte[msgSize];
         aData[0] = nID;
         for (int i=1; i+4<msgSize; i = i + 4) {
-            // sb.append((char) (rnd.nextInt(26) + 'a'));
             aData[i] = (byte)'H';
             aData[i+1] = (byte)'e';
             aData[i+2] = (byte)'y';
@@ -151,7 +146,7 @@ class BenchNetworkThreadPool
         m_aDataSet = new BenchDataSet();
 
         //Loop to go through all Protocols
-        for(int m_nProtocol = 0; m_nProtocol <= 2;m_nProtocol++) {
+        for(int m_nProtocol = Parameter.m_nProtocol; m_nProtocol <= 2;m_nProtocol++) {
             //Create Csv File to store the results
             String sFileName;
             if (m_nProtocol == 0) sFileName = "TCP";
@@ -164,7 +159,9 @@ class BenchNetworkThreadPool
             Semaphore semaphoreLoad = new Semaphore(1);
             for (byte nThreadCount = Parameter.m_nThreadCountMin; nThreadCount <= Parameter.m_nThreadCountMax; nThreadCount = (byte) (nThreadCount + Parameter.m_nThreadIncrease)) {
                 for(Float nSize = Parameter.m_nFileSizeMin; nSize < Parameter.m_nFileSizeMax; nSize = nSize * 2) {
-                    for(short nIterations = 1; nIterations <= Parameter.m_nIterationCount; nIterations = (short) (nIterations * 2)) {
+                    for(int nIterations = Parameter.m_nIterationCount; nIterations <= Parameter.m_nIterationCount; nIterations = (nIterations * 2)) {
+                        BenchNetworkTime oTime = new BenchNetworkTime(semaphoreLoad);
+                        oTime.Begin();
                        // Create Clients and Threads
                         List<BenchNetwork> aClientList = new ArrayList<>();
                         int nPort = 0;
@@ -188,34 +185,16 @@ class BenchNetworkThreadPool
                             BenchNetwork oClientBench = new BenchNetwork(oClient, String.valueOf(nThreadCount), String.valueOf(nCount), semaphoreLoad, m_aDataSet, nSize, nIterations);
                             aClientList.add(oClientBench);
                         }
-
-                        //Execute Threads
-                        //for(int nIndex = 0 ; nIndex < aClientList.size(); nIndex++)
-                           // this.threadPool.execute(aClientList.get(nIndex));
-
+                        long nConTime = 0;
                         try {
                             List<Future<List<List<String>>>> futures = threadPool.invokeAll(aClientList);
+                            nConTime = oTime.CreatedConnection();
 
-                        int nMaxTry = 1200;
                         for (int nIndex = 0; nIndex < futures.size(); nIndex++) {
-                            int nTry = 0;
-                           /* while (aClientList.get(nIndex).IsRunnign()) {
-                                try {
-                                    Thread.sleep(1000);
-                                    if (nTry >= nMaxTry) {
-                                        nMaxTry = Math.round(nMaxTry / 2);
-                                        break;
-                                    }
-                                    nTry++;
-                                    System.out.println("Waiting Thread:" + nIndex + " Tick:" + nTry);
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-                            }*/
-                            //WriteResultstoFile(sFileName, aClientList.get(nIndex).GetResults());
+
                             try {
-                                WriteResultstoFile(sFileName, futures.get(nIndex).get());
-                            } catch (ExecutionException e) {
+                                WriteResultstoFile(sFileName, futures.get(nIndex).get(2,TimeUnit.MINUTES));
+                            } catch (ExecutionException | TimeoutException e) {
                                 List<List<String>> aRes = new ArrayList<>();
                                 List<String> oRow = new ArrayList<String>(); ;
                                 oRow.add(String.valueOf(m_nProtocol));
@@ -237,13 +216,38 @@ class BenchNetworkThreadPool
                             e.printStackTrace();
                         }
 
-                        try {
-                            System.out.println("\n Sleping for while\n");
-                            Thread.sleep(Parameter.m_nSleepTime);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
+                        oTime.End(nSize*nIterations*1048576);
+                        List<List<String>> aRes = new ArrayList<>();
+                        List<String> oRow = new ArrayList<String>(); ;
+                        oRow.add(String.valueOf(m_nProtocol));
+                        oRow.add(String.valueOf(nSize));
+                        oRow.add(String.valueOf(nThreadCount));
+                        oRow.add(String.valueOf(0));
+                        oRow.add(String.valueOf(nIterations));
+                        oRow.add(String.valueOf(oTime.GetTotalTime()));
+                        oRow.add("-2");
+                        oRow.add("-2");
+                        oRow.add("-2");
+                        oRow.add("-2");
+                        oRow.add("-2");
+                        oRow.add("-2");
+                        oRow.add("-2");
+                        oRow.add(String.valueOf(nConTime));
+                        aRes.add(oRow);
+                        WriteResultstoFile(sFileName,aRes);
                     }
+                    try {
+                        System.out.println("\n Sleping for while\n");
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                try {
+                    System.out.println("\n Sleping for 5 sec\n");
+                    Thread.sleep(Parameter.m_nSleepTime);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
             }
         }
@@ -273,6 +277,10 @@ class BenchNetworkThreadPool
             csvWriter.append("Total Usage");
             csvWriter.append(":");
             csvWriter.append("Bench ID");
+            csvWriter.append(":");
+            csvWriter.append("Failed");
+            csvWriter.append(":");
+            csvWriter.append("Connection Time");
             csvWriter.append("\n");
             csvWriter.flush();
             csvWriter.close();
@@ -308,8 +316,8 @@ class BenchNetwork implements Callable<List<List<String>>> {
     protected   Semaphore m_oSemaphoreLoad;
     protected BenchDataSet m_aDataSet;
     protected float m_nFileSize;
-    protected short m_nIteration;
-    BenchNetwork(BaseClient oClient, String sThreadCount, String sThreadIndex,  Semaphore semaphoreLoad , BenchDataSet oData, float nSize, short nIter)
+    protected int m_nIteration;
+    BenchNetwork(BaseClient oClient, String sThreadCount, String sThreadIndex,  Semaphore semaphoreLoad , BenchDataSet oData, float nSize, int nIter)
     {
         m_oClient = oClient;
         m_sThreadCount = sThreadCount;
@@ -337,15 +345,22 @@ class BenchNetwork implements Callable<List<List<String>>> {
 
     private void OneBench(BaseClient oCLient) throws IOException {
         Random rnd = new Random();
+        int nFailed=0;
         long nBenchID = rnd.nextLong();
         System.out.println("Bench ID:" + nBenchID);
-        BenchNetworkTime oTime = new BenchNetworkTime(oCLient, m_oSemaphoreLoad);
+        BenchNetworkTime oTime = new BenchNetworkTime(m_oSemaphoreLoad);
         oTime.Begin();
         oCLient.CreateConnection();
+        final long nConnectionTime = oTime.CreatedConnection();
         for(int nCount = 0; nCount < m_nIteration; nCount++) {
             oTime.Next_BeforeSend();
-            oCLient.SendStringOverConnection(m_nFileSize, m_aDataSet, nBenchID);
-            oTime.Next_AfterSend();
+            if(!oCLient.SendStringOverConnection(m_nFileSize, m_aDataSet, nBenchID))
+            {
+                nFailed++;
+                oTime.Next_AfterSend(false);
+            }
+            else
+                oTime.Next_AfterSend(true);
         }
         oCLient.CloseConnection();
         oTime.End(m_nFileSize * m_nIteration * 1048576);
@@ -354,17 +369,17 @@ class BenchNetwork implements Callable<List<List<String>>> {
         System.out.println("Total time: " + new DecimalFormat("###.##").format( oTime.GetTotalTime()) + " sec");
         System.out.println("Throughput: " +new DecimalFormat("###.####").format( oTime.GetTroughput()) + " Mbyte per Sec");
         System.out.println("Thread Load: " + new DecimalFormat("##.##").format(oTime.GetThreadLoad()) + " %");
-        System.out.println("Avg Core Load: " + new DecimalFormat("##.##").format(oTime.GetAvgCoreUsage()) + " %");
         System.out.println("Total Usage: " + new DecimalFormat("##.##").format(oTime.GetTotalUsage()) + " %");
+        System.out.println("Failed: " +String.valueOf(nFailed) + " %");
         System.out.println("");
 
-        CachingResults(oCLient.GetProtocolName(), new DecimalFormat("###.##").format( m_nFileSize), String.valueOf(m_nIteration), oTime, nBenchID);
+        CachingResults(oCLient.GetProtocolName(), new DecimalFormat("###.##").format( m_nFileSize), String.valueOf(m_nIteration), oTime, nBenchID, nFailed, nConnectionTime);
 
     }
 
     List<List<String>> m_aResults = new ArrayList<>();
 
-    private void CachingResults(String sProtocol, String sFileSize, String sIteration, BenchNetworkTime oTime, long nBenchID)
+    private void CachingResults(String sProtocol, String sFileSize, String sIteration, BenchNetworkTime oTime, long nBenchID, int nFail, long nConnectionTime)
     {
         List<String> oRow = new ArrayList<String>(); ;
         oRow.add(sProtocol);
@@ -378,6 +393,8 @@ class BenchNetwork implements Callable<List<List<String>>> {
         oRow.add(new DecimalFormat("###.##").format(oTime.GetAvgCoreUsage()));
         oRow.add(new DecimalFormat("###.##").format(oTime.GetTotalUsage()));
         oRow.add(String.valueOf(nBenchID));
+        oRow.add(String.valueOf(nFail));
+        oRow.add(String.valueOf(nConnectionTime));
         m_aResults.add(oRow);
     }
 

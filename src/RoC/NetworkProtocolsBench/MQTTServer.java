@@ -23,7 +23,10 @@ public class MQTTServer implements BaseServer, MqttCallback {
 
         try {
             m_oClient = new MqttClient("tcp://192.168.178.60:1883", "Sending");
-            m_oClient.connect();
+            MqttConnectOptions connOpts = new MqttConnectOptions();
+            connOpts.setCleanSession(false); //no persistent sess// on
+            connOpts.setMaxInflight(65000 );
+            m_oClient.connect(connOpts);
             m_oClient.setCallback(this);
             m_oClient.subscribe(m_sTopic);
 

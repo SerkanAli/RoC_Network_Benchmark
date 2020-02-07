@@ -51,7 +51,9 @@ public class MQTTClient implements BaseClient{
             m_oMqttClient = new MqttClient(m_sBroker,String.valueOf(System.nanoTime()));
 
             MqttConnectOptions connOpts = new MqttConnectOptions();
-            connOpts.setCleanSession(true); //no persistent session
+            connOpts.setCleanSession(false); //no persistent sess// on
+            connOpts.setMaxInflight(65000 );
+
             m_oMqttClient.connect(connOpts);
             m_bIsConnected = true;
 
@@ -65,12 +67,12 @@ public class MQTTClient implements BaseClient{
     public boolean SendStringOverConnection(Float nFileSize, BenchDataSet oData, long nBenchID) throws IOException {
         if(!m_bIsConnected)
             return false;
-        byte[] bTime = ByteBuffer.allocate(Long.BYTES).putLong(BenchNetworkTime.GetCurrentTime()).array();
+       /* byte[] bTime = ByteBuffer.allocate(Long.BYTES).putLong(BenchNetworkTime.GetCurrentTime()).array();
         byte[] bID = ByteBuffer.allocate(Long.BYTES).putLong(nBenchID).array();
         for(int nIndex = 0; nIndex < 8; nIndex++) {
             oData.data.get(nFileSize)[nIndex] = bTime[nIndex];
             oData.data.get(nFileSize)[nIndex + 8] = bID[nIndex];
-        }
+        }*/
         MqttMessage message = new MqttMessage();
         message.setPayload(oData.data.get(nFileSize));
         try {

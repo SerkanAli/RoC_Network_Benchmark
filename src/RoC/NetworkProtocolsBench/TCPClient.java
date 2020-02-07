@@ -4,9 +4,11 @@ import javafx.scene.effect.InnerShadow;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.DatagramPacket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 public class TCPClient implements BaseClient {
     private int m_nPort =0;
@@ -49,7 +51,7 @@ public class TCPClient implements BaseClient {
             m_bIsConnected = false;
         }
     }
-
+    final int nChunkSize = 65500;
     @Override
     public boolean SendStringOverConnection(Float nFileSize, BenchDataSet oData, long nBenchID) throws IOException {
 
@@ -63,10 +65,16 @@ public class TCPClient implements BaseClient {
                 oData.data.get(nFileSize)[nIndex] = bTime[nIndex];
                 oData.data.get(nFileSize)[nIndex + 8] = bID[nIndex];
             }
+            int nCount = (oData.data.get(nFileSize).length / nChunkSize) +1;
+            for(int nIndex = 0; nIndex < nCount; nIndex++)
+            {
+                int nBegin = nIndex * nChunkSize;
+                byte buf[] = Arrays.copyOfRange(oData.data.get(nFileSize), nBegin, nBegin+nChunkSize);
+                //oData.data.get(nFileSize)[oData.data.get(nFileSize).length-1] = (byte)'\n';
+                m_oOutToServer.writeInt(buf.length);
+                m_oOutToServer.write(buf);
+            }
 
-            oData.data.get(nFileSize)[oData.data.get(nFileSize).length-1] = (byte)'\n';
-            m_oOutToServer.writeInt(oData.data.get(nFileSize).length);
-            m_oOutToServer.write(oData.data.get(nFileSize));
             //m_oOutToServer.writeBytes(String.valueOf(BenchNetworkTime.GetCurrentTime())+String.valueOf(nBenchID)  + oData.data.get(nFileSize));
            // m_oOutToServer.write(oData.data.get(nFileSize));
         }catch( SocketException e){

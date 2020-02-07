@@ -51,10 +51,12 @@ public interface BaseServer {
             {
                 oServer = new UDPServer();
             }
-            else
+            else if(m_nProtocol == 2)
             {
                 oServer = new MQTTServer();
             }
+            else
+                oServer = new TCPServer();
 
             oServer.SetPort(m_nPort);
 
@@ -120,7 +122,7 @@ public interface BaseServer {
     protected boolean      isStopped    = false;
     protected Thread       runningThread= null;
     protected ExecutorService threadPool =
-            Executors.newFixedThreadPool(25);
+            Executors.newFixedThreadPool(50);
 
     public ThreadPooledServer(){
        //BaseServer

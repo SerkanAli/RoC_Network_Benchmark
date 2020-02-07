@@ -7,19 +7,20 @@ import com.sun.management.OperatingSystemMXBean;
 
 class Parameter{
     static byte m_nThreadCountMin = 1;
-    static byte m_nThreadCountMax = 16;
-    static byte m_nThreadIncrease = 2;
-    static byte m_nIterationCount = 16;
+    static byte m_nThreadCountMax = 8;
+    static byte m_nThreadIncrease = 1;
+    static int m_nIterationCount = 500;
     static float m_nFileSizeMin = 0.01F;
-    static float m_nFileSizeMax =45F;
-    static int m_nSleepTime = 60000;
+    static float m_nFileSizeMax =42F;
+    static int m_nSleepTime = 5000;
+    static int m_nProtocol = 0; //0 TCP, 1 UDP, 2 MQTT
 }
 
 public class Main {
 
     private static boolean m_bUseClient = true; //true: this jar is client side/ false: this jar is Server side
-    //private static String m_sIP = "169.254.41.185";
-   private static String m_sIP = "192.168.178.60";
+    private static String m_sIP = "169.254.41.185";
+   //private static String m_sIP = "192.168.178.60";
    //private static String m_sIP = "192.168.178.45";
 
     public static void main(String[] args) {
