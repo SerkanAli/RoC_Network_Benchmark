@@ -11,10 +11,14 @@ The benchmarking results are written into a csv file. Implemented protocols are:
 Various input Parameter can be changed:
 -Used maximum and minimum thread number: The Benchmark will begin from minimum number and will test every possible parallel sending 
 up to max number of threads
+
 -Maximum and Minimum sending File Size: Begin from minimum File size, 
 will increase the file size exponential up to max file size. The files are byte arrays
+
 -Iteration number: How often should send the same file on established connection
+
 -Sleep Time: To calm down between Thread count switch
+
 -IP Adress of the Server
 
 Ports 1889, and all between 6290 - 6330 should be free for use
