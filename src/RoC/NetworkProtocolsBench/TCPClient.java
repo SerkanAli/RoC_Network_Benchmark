@@ -65,14 +65,14 @@ public class TCPClient implements BaseClient {
                 oData.data.get(nFileSize)[nIndex] = bTime[nIndex];
                 oData.data.get(nFileSize)[nIndex + 8] = bID[nIndex];
             }
-            int nCount = (oData.data.get(nFileSize).length / nChunkSize) +1;
-            for(int nIndex = 0; nIndex < nCount; nIndex++)
+           // int nCount = (oData.data.get(nFileSize).length / nChunkSize) +1;
+          //  for(int nIndex = 0; nIndex < nCount; nIndex++)
             {
-                int nBegin = nIndex * nChunkSize;
-                byte buf[] = Arrays.copyOfRange(oData.data.get(nFileSize), nBegin, nBegin+nChunkSize);
+               // int nBegin = nIndex * nChunkSize;
+               // byte buf[] = Arrays.copyOfRange(oData.data.get(nFileSize), nBegin, nBegin+nChunkSize);
                 //oData.data.get(nFileSize)[oData.data.get(nFileSize).length-1] = (byte)'\n';
-                m_oOutToServer.writeInt(buf.length);
-                m_oOutToServer.write(buf);
+                m_oOutToServer.writeInt(oData.data.get(nFileSize).length);
+                m_oOutToServer.write(oData.data.get(nFileSize));
             }
 
             //m_oOutToServer.writeBytes(String.valueOf(BenchNetworkTime.GetCurrentTime())+String.valueOf(nBenchID)  + oData.data.get(nFileSize));

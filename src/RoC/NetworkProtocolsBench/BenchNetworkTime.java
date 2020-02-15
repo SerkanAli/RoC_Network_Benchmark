@@ -57,14 +57,12 @@ public class BenchNetworkTime {
     public void Next_BeforeSend()
     {
         m_nStartSendDataTime = GetCurrentTime();
-        m_oPerformance.Next();
     }
 
     public void Next_AfterSend(boolean bHasSend)
     {
         if(bHasSend)
             m_nThroughput = m_nThroughput + GetCurrentTime() - m_nStartSendDataTime;
-        m_oPerformance.Next();
     }
 
     public void End(float nFileSize)
@@ -76,6 +74,7 @@ public class BenchNetworkTime {
         m_nAvgCoreUsage = m_oPerformance.GetAverageCoreLoad();
         m_nTotalTime = GetCurrentTime() - m_nStartProcessTime;
         m_nSmoothLoad = m_oMonitor.getUsageByThread(Thread.currentThread());
+        //m_nThroughput = nFileSize / (GetCurrentTime()-m_nStartProcessTime);
         m_nThroughput = nFileSize / m_nThroughput;
     }
 
@@ -140,14 +139,14 @@ class BenchNetworkThreadPool
     }
 
     protected  BenchDataSet m_aDataSet;
-    public void BeginBench()
+    public void BeginBench(int m_nProtocol/*int nIterations, int ndivider, int m_nProtocol, byte nThreadCount*/)
     {
         //Create once same Dataset for all Thread, so Memory heap is avoided
         m_aDataSet = new BenchDataSet();
 
-        //Loop to go through all Protocols
-        for(int m_nProtocol = Parameter.m_nProtocol; m_nProtocol <= 2;m_nProtocol++) {
+
             //Create Csv File to store the results
+        {
             String sFileName;
             if (m_nProtocol == 0) sFileName = "TCP";
             else if (m_nProtocol == 1) sFileName = "UDP";
@@ -158,8 +157,8 @@ class BenchNetworkThreadPool
             //Test different counts of threads
             Semaphore semaphoreLoad = new Semaphore(1);
             for (byte nThreadCount = Parameter.m_nThreadCountMin; nThreadCount <= Parameter.m_nThreadCountMax; nThreadCount = (byte) (nThreadCount + Parameter.m_nThreadIncrease)) {
-                for(Float nSize = Parameter.m_nFileSizeMin; nSize < Parameter.m_nFileSizeMax; nSize = nSize * 2) {
-                    for(int nIterations = Parameter.m_nIterationCount; nIterations <= Parameter.m_nIterationCount; nIterations = (nIterations * 2)) {
+                int nIterations = Parameter.m_nIterationCount;
+                for(Float nSize = Parameter.m_nFileSizeMin; nSize < Parameter.m_nFileSizeMax; nSize = nSize * 2) {{
                         BenchNetworkTime oTime = new BenchNetworkTime(semaphoreLoad);
                         oTime.Begin();
                        // Create Clients and Threads
@@ -183,6 +182,7 @@ class BenchNetworkThreadPool
                             oClient.SetPort(nPort + nCount);
                             oClient.SetIPAdress(m_sIPAdress); //wlan
                             BenchNetwork oClientBench = new BenchNetwork(oClient, String.valueOf(nThreadCount), String.valueOf(nCount), semaphoreLoad, m_aDataSet, nSize, nIterations);
+                            nIterations = (nIterations / Parameter.m_nIterationDivider);
                             aClientList.add(oClientBench);
                         }
                         long nConTime = 0;
@@ -220,11 +220,11 @@ class BenchNetworkThreadPool
                         List<List<String>> aRes = new ArrayList<>();
                         List<String> oRow = new ArrayList<String>(); ;
                         oRow.add(String.valueOf(m_nProtocol));
-                        oRow.add(String.valueOf(nSize));
+                        oRow.add(new DecimalFormat("#######").format(nSize));
                         oRow.add(String.valueOf(nThreadCount));
                         oRow.add(String.valueOf(0));
                         oRow.add(String.valueOf(nIterations));
-                        oRow.add(String.valueOf(oTime.GetTotalTime()));
+                        oRow.add(new DecimalFormat("###.####").format(oTime.GetTotalTime()));
                         oRow.add("-2");
                         oRow.add("-2");
                         oRow.add("-2");
@@ -242,6 +242,7 @@ class BenchNetworkThreadPool
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
+
                 }
                 try {
                     System.out.println("\n Sleping for 5 sec\n");

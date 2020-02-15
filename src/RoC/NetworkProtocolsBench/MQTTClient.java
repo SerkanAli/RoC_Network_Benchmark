@@ -52,7 +52,7 @@ public class MQTTClient implements BaseClient{
 
             MqttConnectOptions connOpts = new MqttConnectOptions();
             connOpts.setCleanSession(false); //no persistent sess// on
-            connOpts.setMaxInflight(65000 );
+            connOpts.setMaxInflight(10 );
 
             m_oMqttClient.connect(connOpts);
             m_bIsConnected = true;
